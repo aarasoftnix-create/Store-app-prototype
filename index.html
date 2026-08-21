@@ -71,32 +71,58 @@
       <!-- Application Core Shell -->
       <div class="app-shell">
         <!-- Sticky Mobile App Header -->
-        <header class="app-header">
-          <div class="header-left">
-            <div class="brand-logo" onclick="app.navigate('home')" style="cursor:pointer;">
-              <div class="brand-logo-icon">⚡</div>
-              <span>SoftnixStore</span>
+        <header class="app-header" id="appHeader">
+          <!-- 1. Home Page Full Header (Home Only) -->
+          <div class="header-row header-row-home" id="headerHome">
+            <div class="header-left">
+              <div class="brand-logo" onclick="app.navigate('home')" style="cursor:pointer;">
+                <div class="brand-logo-icon">⚡</div>
+                <span>SoftnixStore</span>
+              </div>
+            </div>
+
+            <div class="header-right">
+              <!-- Notification Bell with Counter -->
+              <button class="header-icon-btn" onclick="app.navigate('notifications')" title="Notifications">
+                <span>🔔</span>
+                <span class="badge-counter notif-badge-count" style="display:none;">0</span>
+              </button>
+
+              <!-- Wishlist Heart with Counter -->
+              <button class="header-icon-btn" onclick="app.navigate('wishlist')" title="Wishlist">
+                <span>❤️</span>
+                <span class="badge-counter wishlist-badge-count" style="display:none;">0</span>
+              </button>
+
+              <!-- Shopping Cart with Counter -->
+              <button class="header-icon-btn" onclick="app.navigate('cart')" title="Shopping Cart">
+                <span>🛒</span>
+                <span class="badge-counter cart-badge-count" style="display:none;">0</span>
+              </button>
             </div>
           </div>
 
-          <div class="header-right">
-            <!-- Notification Bell with Counter -->
-            <button class="header-icon-btn" onclick="app.navigate('notifications')" title="Notifications">
-              <span>🔔</span>
-              <span class="badge-counter notif-badge-count" style="display:none;">0</span>
-            </button>
+          <!-- 2. Inner Pages Compact Navigation Header (All Other Pages) -->
+          <div class="header-row header-row-inner" id="headerInner" style="display: none;">
+            <div class="header-left">
+              <button class="header-icon-btn" id="headerBackBtn" onclick="app.goBack()" aria-label="Go Back" title="Back" style="font-size:18px; font-weight:700; cursor:pointer;">
+                <span>←</span>
+              </button>
+            </div>
 
-            <!-- Wishlist Heart with Counter -->
-            <button class="header-icon-btn" onclick="app.navigate('wishlist')" title="Wishlist">
-              <span>❤️</span>
-              <span class="badge-counter wishlist-badge-count" style="display:none;">0</span>
-            </button>
+            <div class="header-right">
+              <!-- Notification Bell with Counter -->
+              <button class="header-icon-btn" onclick="app.navigate('notifications')" title="Notifications">
+                <span>🔔</span>
+                <span class="badge-counter notif-badge-count" style="display:none;">0</span>
+              </button>
 
-            <!-- Shopping Cart with Counter -->
-            <button class="header-icon-btn" onclick="app.navigate('cart')" title="Shopping Cart">
-              <span>🛒</span>
-              <span class="badge-counter cart-badge-count" style="display:none;">0</span>
-            </button>
+              <!-- Shopping Cart with Counter -->
+              <button class="header-icon-btn" onclick="app.navigate('cart')" title="Shopping Cart">
+                <span>🛒</span>
+                <span class="badge-counter cart-badge-count" style="display:none;">0</span>
+              </button>
+            </div>
           </div>
         </header>
 
@@ -149,7 +175,7 @@
         </main>
 
         <!-- Modern Sticky Bottom Navigation Bar -->
-        <nav class="bottom-nav">
+        <nav class="bottom-nav" id="bottomNav">
           <button class="nav-item active" data-target-view="home" onclick="app.navigate('home')">
             <span class="nav-icon">🏠</span>
             <span>Home</span>
@@ -157,10 +183,6 @@
           <button class="nav-item" data-target-view="catalog" onclick="app.navigate('catalog')">
             <span class="nav-icon">🛍️</span>
             <span>Catalog</span>
-          </button>
-          <button class="nav-item" data-target-view="search" onclick="app.navigate('search')">
-            <span class="nav-icon">🔎</span>
-            <span>Search</span>
           </button>
           <button class="nav-item" data-target-view="orders" onclick="app.navigate('orders')">
             <span class="nav-icon">📦</span>
@@ -172,6 +194,16 @@
             <span>Account</span>
           </button>
         </nav>
+
+        <!-- Product Details Fixed Bottom Action Bar -->
+        <div class="pdp-bottom-bar" id="pdpBottomBar" style="display: none;">
+          <button class="pdp-action-btn btn-add-cart" id="pdpAddToCartBtn" onclick="app.handlePDPAddToCart()">
+            🛒 Add to Cart
+          </button>
+          <button class="pdp-action-btn btn-buy-now" id="pdpBuyNowBtn" onclick="app.handlePDPBuyNow()">
+            ⚡ Buy Now
+          </button>
+        </div>
       </div>
 
       <!-- Smartphone Hardware Bottom Home Bar -->
