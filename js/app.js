@@ -1,12 +1,8 @@
-/**
- * Main Controller for Storefront, Catalog, Search, PDP, and Reviews & Ratings
- * Team Module: Customer Storefront & Catalog Experience
- */
-
-class StorefrontApp {
+class AppController {
   constructor() {
+    this.historyStack = ["home"];
     this.currentView = "home";
-    this.viewHistory = ["home"];
+    this.viewParams = {};
     this.catalogFilters = {
       category: "all",
       brands: [],
@@ -17,408 +13,404 @@ class StorefrontApp {
       isDealOnly: false
     };
     this.catalogSort = "featured";
-    this.catalogViewMode = "grid"; // 'grid' or 'list'
-    this.activeBannerIndex = 0;
+    this.catalogViewMode = "grid"; // grid | list
+    this.checkoutState = {
+      step: 1,
+      selectedAddressId: null,
+      deliverySpeed: "standard", // standard | express | same_day
+      paymentMethod: "card", // card | upi | cod | netbanking
+      cardData: { number: "•••• •••• •••• 4242", name: "ALEX MORGAN", exp: "12/28" }
+    };
+    this.activeOrderTab = "all"; // all | active | completed | cancelled
+    this.activeNotifTab = "all";
+    this.activeFaqCategory = "all";
+    this.dealTimerInterval = null;
     this.bannerInterval = null;
-    this.currentPDPProduct = null;
-    this.selectedPDPVariant = { color: null, size: null };
-
-    this.init();
+    this.activeBannerSlide = 0;
   }
 
   init() {
-    this.setupTheme();
-    this.setupEventListeners();
-    this.startBannerCarousel();
-    this.startDealCountdown();
+    this.bindEvents();
+    this.setupThemeAndDevice();
+    this.startDealsTimer();
+    this.startBannerAutoplay();
+    this.updateBadges();
     this.navigate("home");
   }
 
-  // --- Theme Management ---
-  setupTheme() {
-    const savedTheme = localStorage.getItem("storefront_theme") || "light";
-    document.documentElement.setAttribute("data-theme", savedTheme);
+  // --- Theme & Device Framing ---
+  setupThemeAndDevice() {
+    const theme = appState.state.settings.theme || "light";
+    document.documentElement.setAttribute("data-theme", theme);
+
+    const deviceMode = appState.state.settings.deviceMode || "iphone";
+    const container = document.getElementById("deviceContainer");
+    if (container) {
+      container.className = `device-container mode-${deviceMode}`;
+    }
+  }
+
+  setDeviceMode(mode) {
+    appState.state.settings.deviceMode = mode;
+    appState.saveState();
+    const container = document.getElementById("deviceContainer");
+    if (container) {
+      container.className = `device-container mode-${mode}`;
+    }
+    document.querySelectorAll(".device-mode-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.mode === mode);
+    });
+    this.showToast(`Switched to ${mode.toUpperCase()} View`);
   }
 
   toggleTheme() {
     const current = document.documentElement.getAttribute("data-theme") || "light";
     const next = current === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("storefront_theme", next);
-    this.showToast(`Switched to ${next.toUpperCase()} mode`);
+    appState.state.settings.theme = next;
+    appState.saveState();
+    this.showToast(`Switched to ${next.toUpperCase()} Mode`);
   }
 
-  // --- Device Frame Switcher ---
-  setDeviceMode(mode) {
-    const container = document.getElementById("deviceContainer");
-    if (!container) return;
-    container.classList.remove("mode-iphone", "mode-android", "mode-responsive");
-    container.classList.add(`mode-${mode}`);
-
-    document.querySelectorAll(".emulator-toolbar .tool-btn").forEach(btn => btn.classList.remove("active"));
-    const activeBtn = document.getElementById(`btn-mode-${mode}`);
-    if (activeBtn) activeBtn.classList.add("active");
-  }
-
-  // --- Navigation & Routing ---
+  // --- Router & Navigation ---
   navigate(viewName, params = {}) {
-    if (this.currentView !== viewName) {
-      this.viewHistory.push(viewName);
-    }
     this.currentView = viewName;
+    this.viewParams = params;
+    this.historyStack.push(viewName);
 
-    // Hide all view containers
-    document.querySelectorAll(".view-container").forEach(el => {
-      el.classList.remove("active");
+    // Hide all views
+    document.querySelectorAll(".view-container").forEach(el => el.classList.remove("active"));
+
+    // Update bottom nav
+    document.querySelectorAll(".nav-item").forEach(item => {
+      item.classList.toggle("active", item.dataset.targetView === viewName);
     });
 
-    // Show target view
-    const target = document.getElementById(`view-${viewName}`);
-    if (target) {
-      target.classList.add("active");
-      const appContent = document.getElementById("appMainContent");
-      if (appContent) appContent.scrollTop = 0;
+    // Render target view
+    const viewContainer = document.getElementById(`view-${viewName}`);
+    if (viewContainer) {
+      viewContainer.classList.add("active");
     }
 
-    // Update bottom nav highlights
-    document.querySelectorAll(".nav-item").forEach(item => {
-      item.classList.toggle("active", item.getAttribute("data-view") === viewName);
-    });
+    // Scroll container to top
+    const content = document.getElementById("appContent");
+    if (content) content.scrollTop = 0;
 
-    // Render corresponding view
+    // View specific render hooks
     switch (viewName) {
       case "home":
         this.renderHome();
         break;
       case "catalog":
-        if (params.category) this.catalogFilters.category = params.category;
         this.renderCatalog();
         break;
       case "search":
-        this.renderSearch(params.query);
+        this.renderSearch();
         break;
       case "pdp":
         this.renderPDP(params.productId);
         break;
+      case "wishlist":
+        this.renderWishlist();
+        break;
+      case "cart":
+        this.renderCart();
+        break;
+      case "checkout":
+        this.renderCheckout();
+        break;
+      case "orders":
+        this.renderOrders();
+        break;
+      case "order_details":
+        this.renderOrderDetails(params.orderId);
+        break;
+      case "tracking":
+        this.renderTracking(params.orderId);
+        break;
+      case "account":
+        this.renderAccount();
+        break;
+      case "returns":
+        this.renderReturns(params.returnId);
+        break;
       case "reviews":
         this.renderReviews(params.productId);
         break;
+      case "notifications":
+        this.renderNotifications();
+        break;
+      case "support":
+        this.renderSupport();
+        break;
     }
+
+    this.updateBadges();
   }
 
   goBack() {
-    if (this.viewHistory.length > 1) {
-      this.viewHistory.pop(); // Remove current
-      const prev = this.viewHistory[this.viewHistory.length - 1];
-      this.navigate(prev);
+    if (this.historyStack.length > 1) {
+      this.historyStack.pop(); // current
+      const previous = this.historyStack.pop();
+      this.navigate(previous || "home");
     } else {
       this.navigate("home");
     }
   }
 
-  // --- Event Listeners ---
-  setupEventListeners() {
-    appState.subscribe("wishlist:updated", () => {
-      this.updateWishlistBadges();
-      if (this.currentView === "catalog") this.renderCatalog();
-      if (this.currentView === "home") this.renderHome();
+  updateBadges() {
+    // Cart badge
+    const cartCount = appState.getCartCount();
+    document.querySelectorAll(".cart-badge-count").forEach(el => {
+      el.textContent = cartCount;
+      el.style.display = cartCount > 0 ? "flex" : "none";
     });
 
-    appState.subscribe("reviews:updated", (data) => {
-      if (this.currentView === "reviews") this.renderReviews(data.productId);
+    // Wishlist count
+    const wishCount = appState.getWishlist().length;
+    document.querySelectorAll(".wishlist-badge-count").forEach(el => {
+      el.textContent = wishCount;
+      el.style.display = wishCount > 0 ? "flex" : "none";
     });
 
-    appState.subscribe("state:reset", () => {
-      this.showToast("Demo Data Reset ✓");
-      this.navigate("home");
+    // Notification unread count
+    const notifCount = appState.getUnreadNotificationCount();
+    document.querySelectorAll(".notif-badge-count").forEach(el => {
+      el.textContent = notifCount;
+      el.style.display = notifCount > 0 ? "flex" : "none";
     });
-  }
 
-  updateWishlistBadges() {
-    const count = appState.getWishlist().length;
-    const badge = document.getElementById("wishlistHeaderBadge");
-    if (badge) {
-      badge.textContent = count;
-      badge.style.display = count > 0 ? "inline-flex" : "none";
+    // Active orders badge on bottom nav
+    const activeOrders = appState.state.orders.filter(o => !["delivered", "cancelled"].includes(o.status)).length;
+    const ordersNavBadge = document.getElementById("ordersNavBadge");
+    if (ordersNavBadge) {
+      ordersNavBadge.textContent = activeOrders;
+      ordersNavBadge.style.display = activeOrders > 0 ? "flex" : "none";
     }
   }
 
-  // --- Toast Notification ---
-  showToast(message) {
-    const container = document.getElementById("toastContainer");
-    if (!container) return;
-
-    const toast = document.createElement("div");
-    toast.className = "toast-message";
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.animation = "toastSlideDown 0.3s ease forwards";
-      setTimeout(() => toast.remove(), 300);
-    }, 2800);
-  }
-
-  // --- Modal Overlay ---
-  openModal(contentHtml) {
-    const overlay = document.getElementById("appModalOverlay");
-    if (!overlay) return;
-    overlay.innerHTML = contentHtml;
-    overlay.classList.add("active");
-  }
-
-  closeModal() {
-    const overlay = document.getElementById("appModalOverlay");
-    if (overlay) {
-      overlay.classList.remove("active");
-      overlay.innerHTML = "";
-    }
-  }
-
-  // =========================================================================
-  // MODULE 1: HOME / STOREFRONT
-  // =========================================================================
+  // --- Module 1: Home / Storefront ---
   renderHome() {
     const container = document.getElementById("view-home");
     if (!container) return;
 
-    const categories = SEED_DATA.categories;
     const banners = SEED_DATA.banners;
-    const featuredProducts = SEED_DATA.products.filter(p => p.isFeatured);
-    const newArrivals = SEED_DATA.products.filter(p => p.isNew);
+    const categories = SEED_DATA.categories;
     const flashDeals = SEED_DATA.products.filter(p => p.isDeal);
+    const newArrivals = SEED_DATA.products.filter(p => p.isNew);
     const popularProducts = SEED_DATA.products.filter(p => p.isPopular);
-    const recentlyViewed = appState.getRecentlyViewedProducts();
+    const recommended = appState.getRecommendedProducts();
+    const recentlyViewed = appState.getRecentlyViewed();
 
     container.innerHTML = `
-      <!-- Quick Search Bar Banner -->
-      <div class="home-search-trigger" onclick="app.navigate('search')">
-        <span class="search-icon">🔍</span>
-        <span class="placeholder-text">Search wireless mouse, headphones, laptops...</span>
-        <span class="search-kbd-hint">Scan</span>
+      <!-- Search Bar Shortcut -->
+      <div class="home-search-trigger">
+        <div class="search-fake-box" onclick="app.navigate('search')">
+          <span>🔍</span>
+          <span>Search products, brands, categories...</span>
+        </div>
       </div>
 
-      <!-- Hero Banner Carousel -->
-      <div class="banner-carousel-wrapper">
-        <div class="banner-track" id="homeBannerTrack">
-          ${banners.map((b, idx) => `
-            <div class="banner-slide ${idx === this.activeBannerIndex ? "active" : ""}" style="background-image: linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.65)), url('${b.image}');">
-              <span class="banner-tag">${b.tag}</span>
-              <h2 class="banner-title">${b.title}</h2>
-              <p class="banner-sub">${b.subtitle}</p>
-              <button class="banner-cta-btn" onclick="app.navigate('${b.targetView}', { category: '${b.targetCategory}' })">
-                ${b.ctaText} →
-              </button>
+      <!-- Hero Banner Slider -->
+      <div class="banner-slider">
+        <div class="banner-track" id="bannerTrack">
+          ${banners.map((b, i) => `
+            <div class="banner-slide" style="background-image: url('${b.image}');" onclick="app.handleBannerClick('${b.targetCategory || ""}', '${b.targetProductId || ""}')">
+              <div class="banner-overlay"></div>
+              <div class="banner-content">
+                <span class="banner-tag">${b.tag}</span>
+                <h3 class="banner-title">${b.title}</h3>
+                <p class="banner-subtitle">${b.subtitle}</p>
+                <div class="banner-btn">
+                  <span>${b.buttonText}</span>
+                  <span>→</span>
+                </div>
+              </div>
             </div>
           `).join("")}
         </div>
         <div class="banner-dots">
-          ${banners.map((_, idx) => `
-            <span class="banner-dot ${idx === this.activeBannerIndex ? "active" : ""}" onclick="app.setActiveBanner(${idx})"></span>
+          ${banners.map((_, i) => `
+            <div class="banner-dot ${i === 0 ? "active" : ""}" data-index="${i}"></div>
           `).join("")}
         </div>
       </div>
 
       <!-- Categories Circular Strip -->
-      <div class="section-container">
-        <div class="section-header">
-          <h3 class="section-title">Shop by Category</h3>
-          <button class="section-link-btn" onclick="app.navigate('catalog', { category: 'all' })">View All →</button>
-        </div>
-        <div class="categories-scroll-strip">
-          ${categories.map(c => `
-            <div class="category-circle-card" onclick="app.navigate('catalog', { category: '${c.id}' })">
-              <div class="category-icon-bubble">${c.icon}</div>
-              <span class="category-name">${c.name}</span>
-            </div>
-          `).join("")}
-        </div>
+      <div class="section-title-wrap">
+        <h2 class="section-title">Shop by Category</h2>
+        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('catalog')">See All →</a>
       </div>
-
-      <!-- Flash Deals Section with Live Countdown -->
-      <div class="section-container flash-deal-section">
-        <div class="section-header">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-size:18px;">⚡</span>
-            <h3 class="section-title" style="color:var(--danger);">Flash Deals</h3>
+      <div class="category-scroll-strip">
+        ${categories.map(c => `
+          <div class="category-chip-item" onclick="app.filterByCategory('${c.id}')">
+            <div class="category-icon-circle">${c.icon}</div>
+            <span class="category-name-label">${c.name}</span>
           </div>
-          <div class="deal-countdown-box" id="dealCountdownBadge">
-            <span class="countdown-label">Ends in:</span>
-            <span class="countdown-digits" id="dealCountdownTimer">04:22:15</span>
+        `).join("")}
+      </div>
+
+      <!-- Flash Deals Section with Countdown -->
+      <div class="deals-banner-card">
+        <div class="deals-header">
+          <div class="deals-title-box">
+            <span>⚡</span>
+            <span>Flash Deals</span>
+          </div>
+          <div class="countdown-box">
+            <span>Ends in:</span>
+            <span class="timer-pill" id="dealHours">14</span>:
+            <span class="timer-pill" id="dealMins">32</span>:
+            <span class="timer-pill" id="dealSecs">45</span>
           </div>
         </div>
-        <div class="products-horizontal-strip">
-          ${flashDeals.map(p => this.renderProductCardHtml(p, "horizontal")).join("")}
+        <div class="products-horizontal-scroll">
+          ${flashDeals.map(p => this.renderProductCardHtml(p, true)).join("")}
         </div>
       </div>
 
-      <!-- New Arrivals Strip -->
-      <div class="section-container">
-        <div class="section-header">
-          <h3 class="section-title">🔥 New Arrivals</h3>
-          <button class="section-link-btn" onclick="app.navigate('catalog')">See More</button>
-        </div>
-        <div class="products-horizontal-strip">
-          ${newArrivals.map(p => this.renderProductCardHtml(p, "horizontal")).join("")}
-        </div>
+      <!-- New Arrivals -->
+      <div class="section-title-wrap" style="margin-top: 16px;">
+        <h2 class="section-title">🔥 New Arrivals</h2>
+        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('catalog')">View More →</a>
+      </div>
+      <div class="products-horizontal-scroll">
+        ${newArrivals.map(p => this.renderProductCardHtml(p, true)).join("")}
       </div>
 
-      <!-- Trending & Popular Products (2-Column Grid) -->
-      <div class="section-container">
-        <div class="section-header">
-          <h3 class="section-title">⭐ Trending & Popular</h3>
-          <span style="font-size:11px; color:var(--text-muted);">Top customer favorites</span>
-        </div>
-        <div class="products-grid-2col">
-          ${popularProducts.map(p => this.renderProductCardHtml(p, "grid")).join("")}
+      <!-- Recommended For You (Personalized Engine) -->
+      <div class="section-title-wrap" style="margin-top: 20px;">
+        <div style="display:flex; flex-direction:column;">
+          <h2 class="section-title">✨ Recommended for You</h2>
+          <span style="font-size:10px; color:var(--text-muted); font-weight:600;">Personalized based on your browsing & wishlist</span>
         </div>
       </div>
-
-      <!-- Personalized "Recommended For You" -->
-      <div class="section-container">
-        <div class="section-header">
-          <h3 class="section-title">✨ Recommended For You</h3>
-          <span style="font-size:11px; color:var(--primary); font-weight:700;">Personalized</span>
-        </div>
-        <div class="products-grid-2col">
-          ${featuredProducts.map(p => this.renderProductCardHtml(p, "grid")).join("")}
-        </div>
+      <div class="products-grid-2col">
+        ${recommended.map(p => this.renderProductCardHtml(p, false)).join("")}
       </div>
 
-      <!-- Recently Viewed Section -->
+      <!-- Popular & Trending -->
+      <div class="section-title-wrap" style="margin-top: 20px;">
+        <h2 class="section-title">⭐ Trending & Popular</h2>
+      </div>
+      <div class="products-grid-2col">
+        ${popularProducts.map(p => this.renderProductCardHtml(p, false)).join("")}
+      </div>
+
+      <!-- Recently Viewed Strip -->
       ${recentlyViewed.length > 0 ? `
-        <div class="section-container" style="margin-bottom:24px;">
-          <div class="section-header">
-            <h3 class="section-title">🕒 Recently Viewed</h3>
-            <span style="font-size:11px; color:var(--text-muted);">${recentlyViewed.length} items</span>
-          </div>
-          <div class="products-horizontal-strip">
-            ${recentlyViewed.map(p => this.renderProductCardHtml(p, "horizontal")).join("")}
-          </div>
+        <div class="section-title-wrap" style="margin-top: 20px;">
+          <h2 class="section-title">🕒 Recently Viewed</h2>
+        </div>
+        <div class="products-horizontal-scroll" style="margin-bottom: 24px;">
+          ${recentlyViewed.map(p => this.renderProductCardHtml(p, true)).join("")}
         </div>
       ` : ""}
     `;
   }
 
-  startBannerCarousel() {
-    if (this.bannerInterval) clearInterval(this.bannerInterval);
-    this.bannerInterval = setInterval(() => {
-      if (this.currentView === "home") {
-        this.activeBannerIndex = (this.activeBannerIndex + 1) % SEED_DATA.banners.length;
-        this.updateBannerSlide();
-      }
-    }, 4500);
+  renderProductCardHtml(product, isScroll = false) {
+    const isWishlisted = appState.isInWishlist(product.id);
+    const discountPercent = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
+
+    return `
+      <div class="product-card ${isScroll ? "scroll-item" : ""}" onclick="app.openProduct('${product.id}')">
+        <div class="product-thumb-wrap">
+          <img src="${product.images[0]}" alt="${product.name}" loading="lazy" />
+          ${product.isDeal ? `<span class="product-badge-pill badge-deal">-${discountPercent}%</span>` : ""}
+          ${product.isNew && !product.isDeal ? `<span class="product-badge-pill badge-new">NEW</span>` : ""}
+          <button class="wishlist-heart-btn ${isWishlisted ? "active" : ""}" onclick="event.stopPropagation(); app.toggleWishlist('${product.id}')">
+            ${isWishlisted ? "❤️" : "🤍"}
+          </button>
+        </div>
+        <div class="product-card-body">
+          <span class="product-brand">${product.brand}</span>
+          <h4 class="product-title">${product.name}</h4>
+          <div class="product-rating-row">
+            <span class="rating-star">★</span>
+            <span>${product.rating}</span>
+            <span style="color:var(--text-subtle)">(${product.reviewCount})</span>
+          </div>
+          <div class="product-price-row">
+            <span class="current-price">$${product.price}</span>
+            <span class="original-price">$${product.originalPrice}</span>
+          </div>
+          <button class="product-quick-add" onclick="event.stopPropagation(); app.quickAddToCart('${product.id}')">
+            <span>+ Add to Cart</span>
+          </button>
+        </div>
+      </div>
+    `;
   }
 
-  setActiveBanner(idx) {
-    this.activeBannerIndex = idx;
-    this.updateBannerSlide();
-  }
-
-  updateBannerSlide() {
-    const slides = document.querySelectorAll(".banner-slide");
-    const dots = document.querySelectorAll(".banner-dot");
-    slides.forEach((s, idx) => s.classList.toggle("active", idx === this.activeBannerIndex));
-    dots.forEach((d, idx) => d.classList.toggle("active", idx === this.activeBannerIndex));
-  }
-
-  startDealCountdown() {
-    let secondsLeft = 4 * 3600 + 22 * 60 + 15;
-    setInterval(() => {
-      if (secondsLeft > 0) secondsLeft--;
-      const hrs = String(Math.floor(secondsLeft / 3600)).padStart(2, "0");
-      const mins = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, "0");
-      const secs = String(secondsLeft % 60).padStart(2, "0");
-      const el = document.getElementById("dealCountdownTimer");
-      if (el) el.textContent = `${hrs}:${mins}:${secs}`;
-    }, 1000);
-  }
-
-  // =========================================================================
-  // MODULE 2: CATALOG & FACETED FILTERS
-  // =========================================================================
+  // --- Module 2: Products Catalog & Faceted Filters ---
   renderCatalog() {
     const container = document.getElementById("view-catalog");
     if (!container) return;
 
-    const filtered = appState.searchProducts("", this.catalogFilters, this.catalogSort);
-    const categories = SEED_DATA.categories;
+    const products = appState.searchProducts("", this.catalogFilters, this.catalogSort);
+    const categories = [{ id: "all", name: "All Products" }, ...SEED_DATA.categories];
 
     container.innerHTML = `
-      <!-- Catalog Top Header Bar -->
-      <div class="catalog-header-bar">
-        <h2 style="font-size:16px; font-weight:800;">Catalog (${filtered.length})</h2>
-        <div style="display:flex; gap:6px;">
-          <!-- Filter Drawer Trigger Button -->
-          <button class="tool-btn ${this.hasActiveFilters() ? "active" : ""}" onclick="app.openFilterDrawer()">
-            ⚙️ Filters ${this.getActiveFilterCountBadge()}
+      <div class="catalog-top-controls">
+        <div class="filter-sort-bar">
+          <button class="filter-btn-pill ${this.hasActiveFilters() ? "has-filters" : ""}" onclick="app.openFilterDrawer()">
+            <span>⚙️ Filters</span>
+            ${this.hasActiveFilters() ? `<span style="font-size:10px; background:var(--primary); color:#fff; border-radius:50%; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center;">!</span>` : ""}
           </button>
-          <!-- Grid / List Switcher -->
-          <button class="tool-btn" onclick="app.toggleCatalogViewMode()">
-            ${this.catalogViewMode === "grid" ? "☰ List" : "⊞ Grid"}
-          </button>
+
+          <div class="sort-select-wrap">
+            <label style="font-size:11px; color:var(--text-muted);">Sort:</label>
+            <select onchange="app.changeCatalogSort(this.value)">
+              <option value="featured" ${this.catalogSort === "featured" ? "selected" : ""}>Featured</option>
+              <option value="price_asc" ${this.catalogSort === "price_asc" ? "selected" : ""}>Price: Low to High</option>
+              <option value="price_desc" ${this.catalogSort === "price_desc" ? "selected" : ""}>Price: High to Low</option>
+              <option value="rating" ${this.catalogSort === "rating" ? "selected" : ""}>Top Rated</option>
+              <option value="newest" ${this.catalogSort === "newest" ? "selected" : ""}>Newest</option>
+            </select>
+          </div>
+
+          <div class="view-toggle-btns">
+            <button class="view-toggle-btn ${this.catalogViewMode === "grid" ? "active" : ""}" onclick="app.setCatalogViewMode('grid')">田</button>
+            <button class="view-toggle-btn ${this.catalogViewMode === "list" ? "active" : ""}" onclick="app.setCatalogViewMode('list')">☰</button>
+          </div>
+        </div>
+
+        <!-- Horizontal Category Pills -->
+        <div class="category-filter-tabs">
+          ${categories.map(c => `
+            <button class="cat-tab-pill ${this.catalogFilters.category === c.id ? "active" : ""}" onclick="app.filterByCategory('${c.id}')">
+              ${c.name}
+            </button>
+          `).join("")}
         </div>
       </div>
 
-      <!-- Horizontal Category Pills -->
-      <div class="catalog-category-pills">
-        <button class="filter-pill ${this.catalogFilters.category === "all" ? "active" : ""}" onclick="app.setCatalogCategory('all')">
-          All Products
-        </button>
-        ${categories.map(c => `
-          <button class="filter-pill ${this.catalogFilters.category === c.id ? "active" : ""}" onclick="app.setCatalogCategory('${c.id}')">
-            ${c.icon} ${c.name}
-          </button>
-        `).join("")}
+      <!-- Result Count Bar -->
+      <div style="padding: 10px 16px; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-muted);">
+        <span>Showing <strong>${products.length}</strong> items</span>
+        ${this.hasActiveFilters() ? `<a href="javascript:void(0)" onclick="app.clearCatalogFilters()" style="color:var(--danger); font-weight:700;">Reset Filters</a>` : ""}
       </div>
 
-      <!-- Sorting Bar -->
-      <div class="catalog-sorting-bar">
-        <span style="font-size:12px; color:var(--text-muted);">Sort by:</span>
-        <select class="sort-select" onchange="app.setCatalogSort(this.value)">
-          <option value="featured" ${this.catalogSort === "featured" ? "selected" : ""}>Featured</option>
-          <option value="price_asc" ${this.catalogSort === "price_asc" ? "selected" : ""}>Price: Low to High</option>
-          <option value="price_desc" ${this.catalogSort === "price_desc" ? "selected" : ""}>Price: High to Low</option>
-          <option value="rating" ${this.catalogSort === "rating" ? "selected" : ""}>Customer Rating</option>
-          <option value="newest" ${this.catalogSort === "newest" ? "selected" : ""}>New Arrivals</option>
-        </select>
+      <!-- Products Grid / List -->
+      <div class="${this.catalogViewMode === "grid" ? "products-grid-2col" : "cart-items-list"}">
+        ${products.length > 0 ? products.map(p => this.renderProductCardHtml(p, false)).join("") : `
+          <div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px;">
+            <div style="font-size: 40px; margin-bottom: 8px;">🛍️</div>
+            <h3 style="font-size:16px; font-weight:700;">No Products Found</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">Try adjusting your filters or price range.</p>
+            <button class="tool-btn" style="margin: 16px auto 0 auto; background:var(--primary); color:#fff;" onclick="app.clearCatalogFilters()">Reset All Filters</button>
+          </div>
+        `}
       </div>
-
-      <!-- Products Listing Grid / List -->
-      ${filtered.length > 0 ? `
-        <div class="${this.catalogViewMode === "grid" ? "products-grid-2col" : "products-list-1col"}" style="padding: 12px 16px;">
-          ${filtered.map(p => this.renderProductCardHtml(p, this.catalogViewMode)).join("")}
-        </div>
-      ` : `
-        <div class="empty-state-box">
-          <div style="font-size:40px;">🛍️</div>
-          <h4 style="font-size:16px; font-weight:800; margin-top:8px;">No Products Found</h4>
-          <p style="font-size:12px; color:var(--text-muted); margin:4px 0 16px 0;">Try adjusting your filters or price range</p>
-          <button class="tool-btn active" onclick="app.resetCatalogFilters()">Reset All Filters</button>
-        </div>
-      `}
     `;
-  }
-
-  setCatalogCategory(catId) {
-    this.catalogFilters.category = catId;
-    this.renderCatalog();
-  }
-
-  setCatalogSort(sortVal) {
-    this.catalogSort = sortVal;
-    this.renderCatalog();
-  }
-
-  toggleCatalogViewMode() {
-    this.catalogViewMode = this.catalogViewMode === "grid" ? "list" : "grid";
-    this.renderCatalog();
   }
 
   hasActiveFilters() {
     return (
       this.catalogFilters.category !== "all" ||
       this.catalogFilters.brands.length > 0 ||
+      this.catalogFilters.minPrice > 0 ||
       this.catalogFilters.maxPrice < 2000 ||
       this.catalogFilters.minRating > 0 ||
       this.catalogFilters.inStockOnly ||
@@ -426,18 +418,22 @@ class StorefrontApp {
     );
   }
 
-  getActiveFilterCountBadge() {
-    let count = 0;
-    if (this.catalogFilters.category !== "all") count++;
-    if (this.catalogFilters.brands.length > 0) count += this.catalogFilters.brands.length;
-    if (this.catalogFilters.maxPrice < 2000) count++;
-    if (this.catalogFilters.minRating > 0) count++;
-    if (this.catalogFilters.inStockOnly) count++;
-    if (this.catalogFilters.isDealOnly) count++;
-    return count > 0 ? `<span class="filter-count-badge">${count}</span>` : "";
+  filterByCategory(catId) {
+    this.catalogFilters.category = catId;
+    this.navigate("catalog");
   }
 
-  resetCatalogFilters() {
+  changeCatalogSort(sortValue) {
+    this.catalogSort = sortValue;
+    this.renderCatalog();
+  }
+
+  setCatalogViewMode(mode) {
+    this.catalogViewMode = mode;
+    this.renderCatalog();
+  }
+
+  clearCatalogFilters() {
     this.catalogFilters = {
       category: "all",
       brands: [],
@@ -448,91 +444,91 @@ class StorefrontApp {
       isDealOnly: false
     };
     this.renderCatalog();
-    this.closeModal();
-    this.showToast("Filters reset");
+    this.showToast("Filters Reset");
   }
 
   openFilterDrawer() {
-    const brands = Array.from(new Set(SEED_DATA.products.map(p => p.brand)));
+    const allBrands = Array.from(new Set(SEED_DATA.products.map(p => p.brand)));
 
     const modalContent = `
       <div class="bottom-sheet">
+        <div class="sheet-handle"></div>
         <div class="sheet-header">
-          <h3>Faceted Filters</h3>
-          <button onclick="app.closeModal()">✕</button>
+          <h3 style="font-size:16px; font-weight:800;">Faceted Filters</h3>
+          <button onclick="app.closeModal()" style="font-size:18px; color:var(--text-muted);">✕</button>
         </div>
-        
-        <div class="sheet-body">
-          <!-- Price Range Filter -->
-          <div class="filter-group">
-            <label class="filter-group-title">
-              <span>Max Price</span>
-              <strong id="priceDisplayVal">$${this.catalogFilters.maxPrice}</strong>
+        <div class="sheet-content">
+          <!-- Price Range Slider -->
+          <div style="margin-bottom: 20px;">
+            <label style="font-size:13px; font-weight:700; display:flex; justify-content:space-between;">
+              <span>Max Price:</span>
+              <span id="priceDisplay" style="color:var(--primary); font-weight:800;">$${this.catalogFilters.maxPrice}</span>
             </label>
-            <input type="range" class="range-slider" min="50" max="2000" step="25" value="${this.catalogFilters.maxPrice}" 
-              oninput="document.getElementById('priceDisplayVal').textContent = '$' + this.value; app.catalogFilters.maxPrice = Number(this.value);" />
+            <input type="range" min="50" max="2000" step="50" value="${this.catalogFilters.maxPrice}" style="width:100%; margin-top:8px;" oninput="document.getElementById('priceDisplay').textContent = '$' + this.value; app.catalogFilters.maxPrice = Number(this.value);" />
           </div>
 
           <!-- Brand Checkboxes -->
-          <div class="filter-group">
-            <label class="filter-group-title">Brands</label>
-            <div class="brand-checkboxes-grid">
-              ${brands.map(b => `
-                <label class="checkbox-label">
-                  <input type="checkbox" value="${b}" ${this.catalogFilters.brands.includes(b) ? "checked" : ""} onchange="app.toggleBrandFilter('${b}')" />
+          <div style="margin-bottom: 20px;">
+            <label style="font-size:13px; font-weight:700; margin-bottom:8px; display:block;">Brands</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              ${allBrands.map(b => `
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
+                  <input type="checkbox" value="${b}" ${this.catalogFilters.brands.includes(b) ? "checked" : ""} onchange="app.toggleBrandFilter('${b}', this.checked)" />
                   <span>${b}</span>
                 </label>
               `).join("")}
             </div>
           </div>
 
-          <!-- Minimum Rating Filter -->
-          <div class="filter-group">
-            <label class="filter-group-title">Customer Rating</label>
-            <div style="display:flex; gap:6px;">
-              <button class="tool-btn ${this.catalogFilters.minRating === 4 ? "active" : ""}" onclick="app.catalogFilters.minRating = 4; app.renderCatalog(); app.closeModal();">4★ & above</button>
-              <button class="tool-btn ${this.catalogFilters.minRating === 3 ? "active" : ""}" onclick="app.catalogFilters.minRating = 3; app.renderCatalog(); app.closeModal();">3★ & above</button>
-              <button class="tool-btn ${this.catalogFilters.minRating === 0 ? "active" : ""}" onclick="app.catalogFilters.minRating = 0; app.renderCatalog(); app.closeModal();">All</button>
+          <!-- Rating Filter -->
+          <div style="margin-bottom: 20px;">
+            <label style="font-size:13px; font-weight:700; margin-bottom:8px; display:block;">Minimum Customer Rating</label>
+            <div style="display:flex; gap:8px;">
+              ${[4, 3, 0].map(r => `
+                <button class="tool-btn ${this.catalogFilters.minRating === r ? "active" : ""}" onclick="app.catalogFilters.minRating = ${r}; app.renderCatalog(); app.closeModal();">
+                  ${r === 0 ? "All Ratings" : `${r}★ & above`}
+                </button>
+              `).join("")}
             </div>
           </div>
 
-          <!-- Availability & Deals Toggles -->
-          <div class="filter-group">
-            <label class="filter-group-title">Availability & Offers</label>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <label class="checkbox-label">
+          <!-- Availability & Deals Switches -->
+          <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 20px;">
+            <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600;">
+              <span>In-Stock Only</span>
+              <label class="switch-toggle">
                 <input type="checkbox" ${this.catalogFilters.inStockOnly ? "checked" : ""} onchange="app.catalogFilters.inStockOnly = this.checked;" />
-                <span>In-Stock Items Only</span>
+                <span class="slider-toggle"></span>
               </label>
-              <label class="checkbox-label">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600;">
+              <span>Flash Deals Only</span>
+              <label class="switch-toggle">
                 <input type="checkbox" ${this.catalogFilters.isDealOnly ? "checked" : ""} onchange="app.catalogFilters.isDealOnly = this.checked;" />
-                <span>Flash Deals Only</span>
+                <span class="slider-toggle"></span>
               </label>
-            </div>
+            </label>
           </div>
-        </div>
 
-        <div class="sheet-footer">
-          <button class="tool-btn" style="flex:1;" onclick="app.resetCatalogFilters()">Reset</button>
-          <button class="apply-filter-btn" style="flex:2;" onclick="app.renderCatalog(); app.closeModal();">Apply Filters</button>
+          <button class="checkout-cta-btn" onclick="app.renderCatalog(); app.closeModal();">
+            Apply Filters
+          </button>
         </div>
       </div>
     `;
     this.openModal(modalContent);
   }
 
-  toggleBrandFilter(brand) {
-    if (this.catalogFilters.brands.includes(brand)) {
-      this.catalogFilters.brands = this.catalogFilters.brands.filter(b => b !== brand);
+  toggleBrandFilter(brand, isChecked) {
+    if (isChecked) {
+      if (!this.catalogFilters.brands.includes(brand)) this.catalogFilters.brands.push(brand);
     } else {
-      this.catalogFilters.brands.push(brand);
+      this.catalogFilters.brands = this.catalogFilters.brands.filter(b => b !== brand);
     }
   }
 
-  // =========================================================================
-  // MODULE 3: INTELLIGENT SEARCH & TYPO-TOLERANCE
-  // =========================================================================
-  renderSearch(initialQuery = "") {
+  // --- Module 3: Intelligent Search & Typo-Tolerance ---
+  renderSearch() {
     const container = document.getElementById("view-search");
     if (!container) return;
 
@@ -541,17 +537,13 @@ class StorefrontApp {
     const analytics = appState.state.searchAnalytics;
 
     container.innerHTML = `
-      <!-- Search Header with Dedicated Back Button -->
       <div class="search-header-bar">
-        <button onclick="app.goBack()" class="search-back-btn" title="Go Back">
-          ←
-        </button>
         <div class="search-input-wrap">
           <span class="search-input-icon">🔍</span>
-          <input type="text" id="mainSearchInput" class="search-input-field" placeholder="Search wireless mouse, headphones..." value="${initialQuery}" autofocus oninput="app.handleSearchInput(this.value)" onkeydown="if(event.key === 'Enter') app.performSearch(this.value)" />
+          <input type="text" id="mainSearchInput" class="search-input-field" placeholder="Search wireless mouse, headphones..." autofocus oninput="app.handleSearchInput(this.value)" onkeydown="if(event.key === 'Enter') app.performSearch(this.value)" />
           <button class="search-clear-btn" onclick="document.getElementById('mainSearchInput').value = ''; app.handleSearchInput('')">✕</button>
         </div>
-        <button onclick="app.goBack()" style="font-size:13px; font-weight:700; color:var(--primary); cursor:pointer;">Cancel</button>
+        <button onclick="app.navigate('home')" style="font-size:13px; font-weight:700; color:var(--primary);">Cancel</button>
       </div>
 
       <!-- Autocomplete Dropdown & Typo Suggestion Box -->
@@ -565,7 +557,7 @@ class StorefrontApp {
           <div class="search-section-box">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size:13px; font-weight:700;">🕒 Recent Searches</span>
-              <button onclick="app.clearRecentSearches()" style="font-size:11px; color:var(--text-muted); cursor:pointer;">Clear All</button>
+              <button onclick="app.clearRecentSearches()" style="font-size:11px; color:var(--text-muted);">Clear All</button>
             </div>
             <div class="search-chips-wrap">
               ${recent.map(r => `
@@ -593,7 +585,7 @@ class StorefrontApp {
         <div class="search-analytics-card">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <strong style="color:var(--text-main);">📊 Search Engine Analytics Log</strong>
-            <span style="font-size:10px; background:var(--primary-light); color:var(--primary); padding:2px 6px; border-radius:4px; font-weight:700;">Live Search</span>
+            <span style="font-size:10px; background:var(--primary-light); color:var(--primary); padding:2px 6px; border-radius:4px; font-weight:700;">Live R&D</span>
           </div>
           <div class="analytics-grid">
             <div class="analytics-stat-box">
@@ -601,326 +593,1438 @@ class StorefrontApp {
               <div style="color:var(--text-muted);">Total Searches</div>
             </div>
             <div class="analytics-stat-box">
-              <div class="analytics-stat-value">${analytics.searchCTR}%</div>
+              <div class="analytics-stat-value">${analytics.clickThroughRate}</div>
               <div style="color:var(--text-muted);">Search CTR</div>
             </div>
             <div class="analytics-stat-box">
-              <div class="analytics-stat-value">${analytics.zeroResultsRate}%</div>
+              <div class="analytics-stat-value">${analytics.zeroResultRate}</div>
               <div style="color:var(--text-muted);">Zero-Result Rate</div>
             </div>
           </div>
         </div>
       </div>
     `;
-
-    if (initialQuery) {
-      this.performSearch(initialQuery);
-    }
   }
 
-  handleSearchInput(val) {
-    const q = val.trim();
+  handleSearchInput(query) {
     const typoArea = document.getElementById("typoSuggestionArea");
     const autoArea = document.getElementById("autocompleteResultsArea");
+    const resultsArea = document.getElementById("searchResultsArea");
 
-    if (q.length < 2) {
+    if (!query || query.trim().length < 2) {
       if (typoArea) typoArea.innerHTML = "";
       if (autoArea) autoArea.innerHTML = "";
+      if (resultsArea) resultsArea.style.display = "block";
       return;
     }
 
-    // Autocomplete Dropdown
-    const matches = SEED_DATA.products.filter(p =>
-      p.name.toLowerCase().includes(q.toLowerCase()) ||
-      p.brand.toLowerCase().includes(q.toLowerCase()) ||
-      p.categoryName.toLowerCase().includes(q.toLowerCase())
-    ).slice(0, 5);
+    if (resultsArea) resultsArea.style.display = "none";
 
-    // Typo Tolerance Check
-    const typoCorrection = appState.findTypoCorrection(q);
-
-    if (typoArea) {
-      if (typoCorrection && matches.length === 0) {
-        typoArea.innerHTML = `
-          <div class="typo-suggestion-banner" onclick="app.performSearch('${typoCorrection}')">
-            <span>Did you mean: <strong>${typoCorrection}</strong>?</span>
-            <span style="font-size:10px; background:var(--primary); color:#fff; padding:2px 6px; border-radius:4px;">Typo Tolerant</span>
-          </div>
-        `;
-      } else {
-        typoArea.innerHTML = "";
-      }
+    // Typo-tolerance Levenshtein check
+    const correction = appState.findTypoCorrection(query);
+    if (correction && typoArea) {
+      typoArea.innerHTML = `
+        <div class="typo-suggestion-box">
+          <span>Did you mean: <span class="corrected-term" onclick="app.performSearch('${correction}')">${correction}</span>?</span>
+          <span style="font-size:10px; opacity:0.8;">Typo Tolerant Engine</span>
+        </div>
+      `;
+    } else if (typoArea) {
+      typoArea.innerHTML = "";
     }
 
+    // Instant Autocomplete
+    const matches = appState.searchProducts(query).slice(0, 5);
     if (autoArea) {
-      if (matches.length > 0) {
-        autoArea.innerHTML = `
-          <div class="autocomplete-dropdown">
-            ${matches.map(m => `
-              <div class="autocomplete-item" onclick="app.navigate('pdp', { productId: '${m.id}' })">
-                <img src="${m.images[0]}" class="autocomplete-thumb" alt="${m.name}" />
-                <div style="flex:1;">
-                  <div class="autocomplete-title">${m.name}</div>
-                  <div class="autocomplete-meta">${m.brand} • ${m.categoryName} • $${m.price}</div>
+      autoArea.innerHTML = `
+        <div class="autocomplete-list">
+          ${matches.map(m => `
+            <div class="autocomplete-item" onclick="app.openProduct('${m.id}')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <img src="${m.images[0]}" style="width:36px; height:36px; border-radius:6px; object-fit:cover;" />
+                <div>
+                  <div style="font-size:13px; font-weight:700;">${m.name}</div>
+                  <div style="font-size:11px; color:var(--text-muted);">${m.categoryName} • $${m.price}</div>
                 </div>
-                <span style="font-size:12px; color:var(--text-muted);">→</span>
               </div>
-            `).join("")}
+              <span style="font-size:12px; color:var(--primary); font-weight:700;">View →</span>
+            </div>
+          `).join("")}
+          <div class="autocomplete-item" style="background:var(--bg-surface-subtle); justify-content:center; font-weight:700; color:var(--primary);" onclick="app.performSearch('${query}')">
+            See all matching products for "${query}"
           </div>
-        `;
-      } else {
-        autoArea.innerHTML = "";
-      }
+        </div>
+      `;
     }
   }
 
-  performSearch(query) {
-    const clean = query.trim();
-    if (!clean) return;
-
-    appState.addRecentSearch(clean);
+  performSearch(term) {
+    appState.addRecentSearch(term);
     const input = document.getElementById("mainSearchInput");
-    if (input) input.value = clean;
+    if (input) input.value = term;
+
+    const results = appState.searchProducts(term);
+    appState.logSearchAnalytics(term, results.length);
 
     const typoArea = document.getElementById("typoSuggestionArea");
     const autoArea = document.getElementById("autocompleteResultsArea");
+    const resultsArea = document.getElementById("searchResultsArea");
+
     if (typoArea) typoArea.innerHTML = "";
     if (autoArea) autoArea.innerHTML = "";
 
-    const resultsArea = document.getElementById("searchResultsArea");
-    if (!resultsArea) return;
-
-    const results = appState.searchProducts(clean);
-
-    resultsArea.innerHTML = `
-      <div style="padding: 12px 16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <span style="font-size:13px; font-weight:700;">Results for "${clean}" (${results.length})</span>
-          <button onclick="app.renderSearch('')" style="font-size:11px; color:var(--primary); font-weight:700; cursor:pointer;">Reset Search</button>
+    if (resultsArea) {
+      resultsArea.style.display = "block";
+      resultsArea.innerHTML = `
+        <div style="padding: 12px 16px; font-size:13px; color:var(--text-muted);">
+          Found <strong>${results.length}</strong> results for "<span style="color:var(--text-main); font-weight:700;">${term}</span>"
         </div>
-
-        ${results.length > 0 ? `
-          <div class="products-grid-2col">
-            ${results.map(p => this.renderProductCardHtml(p, "grid")).join("")}
-          </div>
-        ` : `
-          <div class="empty-state-box">
-            <div style="font-size:40px;">🔍</div>
-            <h4 style="font-size:16px; font-weight:800; margin-top:8px;">No matching items</h4>
-            <p style="font-size:12px; color:var(--text-muted); margin:4px 0 16px 0;">Try searching for "headphones", "smartphones", or "shoes"</p>
-          </div>
-        `}
-      </div>
-    `;
+        <div class="products-grid-2col">
+          ${results.map(p => this.renderProductCardHtml(p, false)).join("")}
+        </div>
+      `;
+    }
   }
 
   clearRecentSearches() {
     appState.clearRecentSearches();
-    this.renderSearch("");
+    this.renderSearch();
     this.showToast("Search history cleared");
   }
 
-  // =========================================================================
-  // MODULE 4: PRODUCT DETAILS VIEW (PDP)
-  // =========================================================================
+  // --- Module 4: Product Details Page (PDP) ---
+  openProduct(productId) {
+    appState.logProductView(productId);
+    this.navigate("pdp", { productId });
+  }
+
   renderPDP(productId) {
     const container = document.getElementById("view-pdp");
     if (!container) return;
 
-    const product = SEED_DATA.products.find(p => p.id === productId) || SEED_DATA.products[0];
-    this.currentPDPProduct = product;
-    appState.recordRecentlyViewed(product.id);
+    const product = SEED_DATA.products.find(p => p.id === productId);
+    if (!product) {
+      container.innerHTML = `<div style="padding:20px;">Product not found. <button onclick="app.navigate('home')">Home</button></div>`;
+      return;
+    }
 
-    const isInWish = appState.isInWishlist(product.id);
-    const reviews = appState.getProductReviews(product.id);
+    const isWishlisted = appState.isInWishlist(product.id);
+    const discountPercent = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
     const similar = SEED_DATA.products.filter(p => p.category === product.category && p.id !== product.id);
 
-    this.selectedPDPVariant = {
-      color: product.variants.colors[0]?.name || null,
-      size: product.variants.sizes[0] || null
-    };
-
     container.innerHTML = `
-      <!-- PDP Top Navigation Bar -->
-      <div class="pdp-top-bar">
-        <button class="pdp-nav-btn" onclick="app.goBack()">←</button>
-        <span class="pdp-nav-title">${product.name}</span>
-        <button class="pdp-nav-btn" onclick="app.toggleWishlistPDP('${product.id}')">
-          <span style="color:${isInWish ? "#ef4444" : "var(--text-main)"}; font-size:18px;">${isInWish ? "♥" : "♡"}</span>
-        </button>
+      <!-- Back & Navigation Bar -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
+        <button onclick="app.goBack()" style="font-size:18px; font-weight:700; color:var(--text-main);">← Back</button>
+        <div style="display:flex; gap:12px;">
+          <button class="wishlist-heart-btn ${isWishlisted ? "active" : ""}" style="position:static; width:34px; height:34px;" onclick="app.toggleWishlist('${product.id}')">
+            ${isWishlisted ? "❤️" : "🤍"}
+          </button>
+          <button class="header-icon-btn" onclick="app.shareProduct('${product.name}')">
+            <span>🔗</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Main Photo Gallery & Thumbnail Carousel -->
+      <!-- Image Gallery -->
       <div class="pdp-gallery-wrap">
-        <img src="${product.images[0]}" id="mainPDPImage" class="pdp-main-image" alt="${product.name}" />
-        <div class="pdp-thumbnails-strip">
-          ${product.images.map((img, idx) => `
-            <img src="${img}" class="pdp-thumb ${idx === 0 ? "active" : ""}" onclick="app.switchPDPImage('${img}', this)" alt="Thumbnail ${idx+1}" />
+        <img id="pdpMainImg" class="pdp-main-image" src="${product.images[0]}" alt="${product.name}" />
+        <div class="pdp-gallery-thumbs">
+          ${product.images.map((img, i) => `
+            <div class="pdp-thumb ${i === 0 ? "active" : ""}" onclick="app.switchPDPImage('${img}', this)">
+              <img src="${img}" alt="${product.name}" />
+            </div>
           `).join("")}
         </div>
       </div>
 
-      <!-- Product Information Body -->
+      <!-- Product Details Body -->
       <div class="pdp-body">
-        <div class="pdp-brand-tag">${product.brand}</div>
+        <span class="pdp-brand-badge">${product.brand}</span>
         <h1 class="pdp-title">${product.name}</h1>
 
-        <!-- Rating Row (Clickable to read reviews) -->
-        <div class="pdp-rating-row" onclick="app.navigate('reviews', { productId: '${product.id}' })" style="cursor:pointer;" title="Read verified reviews">
-          <span class="rating-stars">★★★★★</span>
-          <span class="rating-number">${product.rating}</span>
-          <span class="review-count">(${reviews.length} Verified Reviews)</span>
-          <span style="margin-left:auto; font-size:11px; color:var(--primary); font-weight:700;">Read All →</span>
+        <div class="pdp-rating-strip" onclick="app.navigate('reviews', { productId: '${product.id}' })" style="cursor:pointer;">
+          <span style="color:#f59e0b; font-size:16px;">★</span>
+          <span style="font-weight:800; font-size:14px;">${product.rating}</span>
+          <span style="color:var(--primary); font-size:12px; text-decoration:underline;">(${product.reviewCount} customer reviews)</span>
         </div>
 
-        <!-- Pricing Row -->
-        <div class="pdp-price-row">
-          <span class="pdp-current-price">$${product.price.toFixed(2)}</span>
-          ${product.originalPrice ? `<span class="pdp-original-price">$${product.originalPrice.toFixed(2)}</span>` : ""}
-          ${product.discountPercent ? `<span class="pdp-discount-badge">${product.discountPercent}% OFF</span>` : ""}
+        <div class="pdp-price-box">
+          <span class="price">$${product.price}</span>
+          <span class="original-price" style="font-size:16px;">$${product.originalPrice}</span>
+          <span class="discount-tag" style="font-size:13px;">Save ${discountPercent}%</span>
         </div>
-        <div style="font-size:11px; color:var(--text-muted); margin-bottom:14px;">Includes all customer taxes • Free shipping on orders over $50</div>
 
-        <!-- Stock Urgency Alert -->
-        <div class="pdp-stock-status">
-          <span class="stock-pill ${product.stockQuantity <= 10 ? "stock-urgent" : "stock-available"}">
-            ${product.stockQuantity <= 10 ? `⚠️ Only ${product.stockQuantity} units left in stock - order soon!` : `✓ In Stock (${product.stockQuantity} available)`}
+        <!-- Stock Urgency -->
+        <div>
+          <span class="stock-status-pill ${product.stockCount <= 10 ? "low" : ""}">
+            <span>●</span>
+            <span>${product.stockCount <= 10 ? `Only ${product.stockCount} left in stock - order soon!` : "In Stock - Fast Dispatch"}</span>
           </span>
+          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">SKU: ${product.sku} • 100% Authentic Guarantee</div>
         </div>
 
-        <!-- Color Variant Selector -->
-        ${product.variants.colors.length > 0 ? `
+        <!-- Variant Options: Colors -->
+        ${product.variants?.colors ? `
           <div class="pdp-variant-section">
-            <div class="variant-label">
-              <span>Color:</span>
-              <strong id="selectedColorName">${this.selectedPDPVariant.color}</strong>
-            </div>
-            <div class="color-swatches-wrap">
-              ${product.variants.colors.map((c, idx) => `
-                <button class="color-swatch-btn ${idx === 0 ? "active" : ""}" style="background-color: ${c.hex};" 
-                  title="${c.name}" onclick="app.selectPDPColor('${c.name}', this)"></button>
+            <span class="variant-label">Color: <strong id="selectedColorLabel" style="color:var(--text-main);">${product.variants.colors[0].name}</strong></span>
+            <div class="variant-color-list">
+              ${product.variants.colors.map((c, i) => `
+                <button class="color-swatch-btn ${i === 0 ? "active" : ""}" style="background-color: ${c.hex};" onclick="app.selectColorVariant('${c.name}', this)"></button>
               `).join("")}
             </div>
           </div>
         ` : ""}
 
-        <!-- Size / Storage Variant Selector -->
-        ${product.variants.sizes.length > 1 ? `
+        <!-- Variant Options: Sizes / Storage -->
+        ${product.variants?.sizes ? `
           <div class="pdp-variant-section">
-            <div class="variant-label">
-              <span>Size / Storage:</span>
-              <strong id="selectedSizeName">${this.selectedPDPVariant.size}</strong>
-            </div>
-            <div class="size-pills-wrap">
-              ${product.variants.sizes.map((s, idx) => `
-                <button class="size-pill-btn ${idx === 0 ? "active" : ""}" onclick="app.selectPDPSize('${s}', this)">${s}</button>
+            <span class="variant-label">Configuration / Size:</span>
+            <div class="variant-size-list">
+              ${product.variants.sizes.map((s, i) => `
+                <button class="size-pill-btn ${i === 0 ? "active" : ""}" onclick="app.selectSizeVariant('${s.name}', ${s.priceDelta}, this)">
+                  ${s.name} ${s.priceDelta > 0 ? `(+$${s.priceDelta})` : ""}
+                </button>
               `).join("")}
             </div>
           </div>
         ` : ""}
 
-        <!-- Pincode Delivery Estimator -->
-        <div class="pdp-delivery-box">
-          <div style="font-size:12px; font-weight:700; margin-bottom:4px;">🚚 Delivery Options</div>
-          <div style="display:flex; gap:6px;">
-            <input type="text" id="pdpZipInput" placeholder="Enter Zip/Pincode (e.g. 90210)" class="zip-input" value="97201" />
-            <button class="tool-btn active" onclick="app.checkPincodeDelivery()">Check</button>
+        <!-- Delivery Pincode Checker -->
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:14px;">
+          <label style="font-size:12px; font-weight:700;">📍 Delivery Estimate</label>
+          <div class="pincode-estimator-box">
+            <input type="text" id="pincodeInput" class="pincode-input" placeholder="Enter Zip Code (e.g. 97477)" value="97477" />
+            <button class="pincode-btn" onclick="app.checkPincode()">Check</button>
           </div>
-          <div id="pdpDeliveryEstimateText" style="font-size:11px; color:var(--success); font-weight:600; margin-top:6px;">
-            ✓ Standard Delivery by Friday, Aug 22 • Express available
+          <div id="pincodeResult" style="font-size:12px; color:var(--success); font-weight:600; margin-top:8px;">
+            ✓ Deliver to 97477 by ${product.deliveryEstimate}
           </div>
         </div>
 
         <!-- Description -->
-        <div class="pdp-description-section">
-          <h4 style="font-size:13px; font-weight:800; margin-bottom:6px;">Product Overview</h4>
-          <p style="font-size:12px; color:var(--text-muted); line-height:1.5;">${product.description}</p>
+        <div>
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:6px;">Product Description</h3>
+          <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${product.description}</p>
         </div>
 
-        <!-- Customer-Safe Specifications Table -->
-        <div class="pdp-specs-section">
-          <h4 style="font-size:13px; font-weight:800; margin-bottom:8px;">Customer Specifications</h4>
-          <div class="specs-table">
-            <div class="spec-row">
-              <span class="spec-label">Customer SKU</span>
-              <span class="spec-value">${product.sku}</span>
-            </div>
-            ${Object.entries(product.specifications).map(([key, val]) => `
-              <div class="spec-row">
-                <span class="spec-label">${key}</span>
-                <span class="spec-value">${val}</span>
-              </div>
-            `).join("")}
-          </div>
+        <!-- Customer-Safe Specs (Hiding internal ERP fields) -->
+        <div>
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:8px;">Technical Specifications</h3>
+          <table class="specs-table">
+            <tbody>
+              ${Object.entries(product.specifications || {}).map(([key, val]) => `
+                <tr>
+                  <td>${key}</td>
+                  <td>${val}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
         </div>
 
-        <!-- Similar Related Products Carousel -->
+        <!-- Similar Products Carousel -->
         ${similar.length > 0 ? `
-          <div class="pdp-similar-section">
-            <h4 style="font-size:13px; font-weight:800; margin-bottom:8px;">Similar Products</h4>
-            <div class="products-horizontal-strip">
-              ${similar.map(p => this.renderProductCardHtml(p, "horizontal")).join("")}
+          <div style="margin-top: 10px;">
+            <h3 style="font-size:14px; font-weight:800; margin-bottom:10px;">Similar Products</h3>
+            <div class="products-horizontal-scroll">
+              ${similar.map(s => this.renderProductCardHtml(s, true)).join("")}
             </div>
           </div>
         ` : ""}
       </div>
 
-      <!-- Sticky Bottom Action Bar -->
-      <div class="pdp-sticky-bottom-bar">
-        <button class="pdp-action-icon-btn" onclick="app.toggleWishlistPDP('${product.id}')" title="Add to Wishlist">
-          <span style="color:${isInWish ? "#ef4444" : "var(--text-main)"}; font-size:18px;">${isInWish ? "♥" : "♡"}</span>
+      <!-- PDP Sticky Bottom Action Bar -->
+      <div class="pdp-bottom-bar">
+        <button class="pdp-action-btn btn-add-cart" onclick="app.handlePDPAddToCart('${product.id}')">
+          🛒 Add to Cart
         </button>
-        <button class="pdp-action-icon-btn" onclick="app.navigate('reviews', { productId: '${product.id}' })" title="Customer Reviews">
-          ⭐
-        </button>
-        <button class="pdp-cta-primary-btn" onclick="app.showToast('Item saved to your favorites! ❤️');">
-          Save Item
+        <button class="pdp-action-btn btn-buy-now" onclick="app.handlePDPBuyNow('${product.id}')">
+          ⚡ Buy Now
         </button>
       </div>
     `;
   }
 
   switchPDPImage(imgUrl, thumbEl) {
-    const main = document.getElementById("mainPDPImage");
+    const main = document.getElementById("pdpMainImg");
     if (main) main.src = imgUrl;
     document.querySelectorAll(".pdp-thumb").forEach(t => t.classList.remove("active"));
     if (thumbEl) thumbEl.classList.add("active");
   }
 
-  selectPDPColor(colorName, btnEl) {
-    this.selectedPDPVariant.color = colorName;
-    const label = document.getElementById("selectedColorName");
-    if (label) label.textContent = colorName;
+  selectColorVariant(name, el) {
     document.querySelectorAll(".color-swatch-btn").forEach(b => b.classList.remove("active"));
-    if (btnEl) btnEl.classList.add("active");
+    if (el) el.classList.add("active");
+    const lbl = document.getElementById("selectedColorLabel");
+    if (lbl) lbl.textContent = name;
   }
 
-  selectPDPSize(sizeName, btnEl) {
-    this.selectedPDPVariant.size = sizeName;
-    const label = document.getElementById("selectedSizeName");
-    if (label) label.textContent = sizeName;
+  selectSizeVariant(name, delta, el) {
     document.querySelectorAll(".size-pill-btn").forEach(b => b.classList.remove("active"));
-    if (btnEl) btnEl.classList.add("active");
+    if (el) el.classList.add("active");
   }
 
-  checkPincodeDelivery() {
-    const zip = document.getElementById("pdpZipInput")?.value || "97201";
-    const text = document.getElementById("pdpDeliveryEstimateText");
-    if (text) {
-      text.textContent = `✓ Delivery available to ${zip} in 2-3 business days! Free shipping verified.`;
-      this.showToast(`Delivery confirmed for ${zip}`);
+  checkPincode() {
+    const input = document.getElementById("pincodeInput");
+    const res = document.getElementById("pincodeResult");
+    if (input && res) {
+      res.innerHTML = `✓ Deliver to <strong>${input.value || "97477"}</strong> in 2 business days • Free Delivery eligible`;
+      this.showToast("Delivery estimate updated");
     }
   }
 
-  toggleWishlistPDP(productId) {
-    const added = appState.toggleWishlist(productId);
-    this.showToast(added ? "Added to Wishlist ❤️" : "Removed from Wishlist");
-    this.renderPDP(productId);
+  shareProduct(title) {
+    if (navigator.share) {
+      navigator.share({ title: title, url: window.location.href });
+    } else {
+      this.showToast("Product link copied to clipboard!");
+    }
   }
 
-  // =========================================================================
-  // MODULE 5: REVIEWS & RATINGS (Customer Reviews & Breakdown)
-  // =========================================================================
+  handlePDPAddToCart(productId) {
+    const color = document.getElementById("selectedColorLabel")?.textContent || "Standard";
+    const size = document.querySelector(".size-pill-btn.active")?.textContent.trim() || "Standard";
+    appState.addToCart(productId, { color, size }, 1);
+    this.showToast("Added to Cart! 🛒");
+  }
+
+  handlePDPBuyNow(productId) {
+    this.handlePDPAddToCart(productId);
+    this.validateAndProceedToCheckout();
+  }
+
+  quickAddToCart(productId) {
+    appState.addToCart(productId, {}, 1);
+    this.showToast("Added to Cart! 🛒");
+  }
+
+  // --- Module 5: Wishlist ---
+  toggleWishlist(productId) {
+    const added = appState.toggleWishlist(productId);
+    this.showToast(added ? "Added to Wishlist ❤️" : "Removed from Wishlist");
+    this.updateBadges();
+    if (this.currentView === "wishlist") {
+      this.renderWishlist();
+    }
+  }
+
+  renderWishlist() {
+    const container = document.getElementById("view-wishlist");
+    if (!container) return;
+
+    const wishlistIds = appState.getWishlist();
+    const items = wishlistIds.map(id => SEED_DATA.products.find(p => p.id === id)).filter(Boolean);
+
+    container.innerHTML = `
+      <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="font-size:16px; font-weight:800;">My Wishlist (${items.length})</h2>
+        ${items.length > 0 ? `
+          <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.moveAllWishlistToCart()">
+            Move All to Cart
+          </button>
+        ` : ""}
+      </div>
+
+      <div style="padding:16px;">
+        ${items.length > 0 ? `
+          <div class="products-grid-2col">
+            ${items.map(item => `
+              <div class="product-card">
+                <div class="product-thumb-wrap" onclick="app.openProduct('${item.id}')">
+                  <img src="${item.images[0]}" alt="${item.name}" />
+                  <button class="wishlist-heart-btn active" onclick="event.stopPropagation(); app.toggleWishlist('${item.id}')">❤️</button>
+                </div>
+                <div class="product-card-body">
+                  <span class="product-brand">${item.brand}</span>
+                  <h4 class="product-title">${item.name}</h4>
+                  <div class="product-price-row">
+                    <span class="current-price">$${item.price}</span>
+                  </div>
+                  <button class="product-quick-add" onclick="app.moveWishlistItemToCart('${item.id}')">
+                    Move to Cart 🛒
+                  </button>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        ` : `
+          <div style="text-align:center; padding: 50px 20px;">
+            <div style="font-size: 50px; margin-bottom: 12px;">❤️</div>
+            <h3 style="font-size: 16px; font-weight: 800;">Your Wishlist is Empty</h3>
+            <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Save items you love and buy them whenever you are ready.</p>
+            <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('catalog')">
+              Explore Products
+            </button>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  moveWishlistItemToCart(productId) {
+    appState.moveToCartFromWishlist(productId);
+    this.showToast("Moved to Cart!");
+    this.renderWishlist();
+  }
+
+  moveAllWishlistToCart() {
+    appState.addAllWishlistToCart();
+    this.showToast("All items moved to Cart! 🛒");
+    this.renderWishlist();
+  }
+
+  // --- Module 6: Cart & Coupon Engine ---
+  renderCart() {
+    const container = document.getElementById("view-cart");
+    if (!container) return;
+
+    const cartItems = appState.getCart();
+    const savedItems = appState.state.savedForLater;
+    const totals = appState.getCartTotals();
+    const appliedCoupon = appState.state.appliedCoupon;
+
+    container.innerHTML = `
+      <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="font-size:16px; font-weight:800;">Shopping Cart (${appState.getCartCount()} items)</h2>
+        <span style="font-size:12px; color:var(--primary); font-weight:700;">Price Protected</span>
+      </div>
+
+      <!-- Free Shipping Progress Tracker -->
+      ${totals.subtotal > 0 ? `
+        <div class="free-shipping-card">
+          <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
+            <span>🚚 Free Shipping</span>
+            <span>${totals.progressToFreeDelivery >= 100 ? "✓ You unlocked FREE Delivery!" : `Add $${totals.freeDeliveryRemaining.toFixed(2)} more`}</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill" style="width: ${totals.progressToFreeDelivery}%;"></div>
+          </div>
+        </div>
+      ` : ""}
+
+      <!-- Cart Items List -->
+      ${cartItems.length > 0 ? `
+        <div class="cart-items-list">
+          ${cartItems.map(item => `
+            <div class="cart-item-card">
+              <img src="${item.image}" class="cart-item-img" alt="${item.name}" onclick="app.openProduct('${item.productId}')" />
+              <div class="cart-item-info">
+                <h4 class="cart-item-title" onclick="app.openProduct('${item.productId}')">${item.name}</h4>
+                <span class="cart-item-variant">${item.color} • ${item.size}</span>
+                <div style="font-size:14px; font-weight:800; color:var(--text-main); margin-bottom:8px;">
+                  $${(item.price * item.quantity).toFixed(2)}
+                </div>
+
+                <div class="cart-item-footer">
+                  <div class="qty-stepper">
+                    <button class="qty-btn" onclick="app.updateQty('${item.id}', -1)">-</button>
+                    <span class="qty-val">${item.quantity}</span>
+                    <button class="qty-btn" onclick="app.updateQty('${item.id}', 1)">+</button>
+                  </div>
+
+                  <div style="display:flex; gap:8px;">
+                    <button onclick="app.confirmRemoveCartItem('${item.id}')" style="font-size:11px; color:var(--danger); font-weight:700;">Remove</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Coupon / Promo Box -->
+        <div class="coupon-section-box">
+          <label style="font-size:12px; font-weight:700; color:var(--text-main);">Apply Promo / Coupon Code</label>
+          <div class="coupon-input-group">
+            <input type="text" id="couponCodeInput" class="coupon-input" placeholder="e.g. WELCOME10" value="${appliedCoupon ? appliedCoupon.code : ""}" ${appliedCoupon ? "disabled" : ""} />
+            ${appliedCoupon ? `
+              <button class="coupon-apply-btn" style="background:var(--danger);" onclick="app.removeCoupon()">Remove</button>
+            ` : `
+              <button class="coupon-apply-btn" onclick="app.applyCouponCode()">Apply</button>
+            `}
+          </div>
+          ${appliedCoupon ? `
+            <div style="font-size:11px; color:var(--success); font-weight:700; margin-top:6px;">
+              ✓ ${appliedCoupon.description}
+            </div>
+          ` : `
+            <div style="margin-top:6px;">
+              <span style="font-size:10px; color:var(--text-muted);">Quick Codes:</span>
+              <span class="coupon-pill-demo" onclick="app.fillCoupon('WELCOME10')">WELCOME10 (10% Off)</span>
+              <span class="coupon-pill-demo" onclick="app.fillCoupon('SAVE20')">SAVE20 ($20 Off)</span>
+            </div>
+          `}
+        </div>
+
+        <!-- Dynamic Order Summary Breakdown -->
+        <div class="order-summary-card">
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Price Details</h3>
+          <div class="summary-row">
+            <span>Items Subtotal</span>
+            <span>$${totals.subtotal.toFixed(2)}</span>
+          </div>
+          ${totals.discount > 0 ? `
+            <div class="summary-row" style="color:var(--success); font-weight:700;">
+              <span>Coupon Discount</span>
+              <span>-$${totals.discount.toFixed(2)}</span>
+            </div>
+          ` : ""}
+          <div class="summary-row">
+            <span>Delivery Fee</span>
+            <span>${totals.deliveryFee === 0 ? "<strong style='color:var(--success);'>FREE</strong>" : `$${totals.deliveryFee.toFixed(2)}`}</span>
+          </div>
+          <div class="summary-row">
+            <span>Estimated Tax (8%)</span>
+            <span>$${totals.tax.toFixed(2)}</span>
+          </div>
+          <div class="summary-row total">
+            <span>Grand Total</span>
+            <span>$${totals.total.toFixed(2)}</span>
+          </div>
+
+          <button class="checkout-cta-btn" style="margin-top:16px;" onclick="app.validateAndProceedToCheckout()">
+            Proceed to Checkout ($${totals.total.toFixed(2)}) →
+          </button>
+        </div>
+      ` : `
+        <div style="text-align:center; padding: 50px 20px;">
+          <div style="font-size: 50px; margin-bottom: 12px;">🛒</div>
+          <h3 style="font-size: 16px; font-weight: 800;">Your Cart is Empty</h3>
+          <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Explore our catalog and find great deals!</p>
+          <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('catalog')">
+            Start Shopping
+          </button>
+        </div>
+      `}
+
+      <!-- Saved for Later Section -->
+      ${savedItems.length > 0 ? `
+        <div style="padding:16px;">
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:10px;">Saved for Later (${savedItems.length})</h3>
+          <div class="cart-items-list" style="padding:0;">
+            ${savedItems.map(item => `
+              <div class="cart-item-card">
+                <img src="${item.image}" class="cart-item-img" alt="${item.name}" />
+                <div class="cart-item-info">
+                  <h4 class="cart-item-title">${item.name}</h4>
+                  <div style="font-size:14px; font-weight:800; color:var(--text-main);">$${item.price}</div>
+                  <div style="display:flex; gap:8px; margin-top:8px;">
+                    <button class="tool-btn active" onclick="app.moveSavedToCart('${item.id}')">Move to Cart</button>
+                    <button class="tool-btn" style="color:var(--danger);" onclick="app.removeSavedItem('${item.id}')">Delete</button>
+                  </div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
+    `;
+  }
+
+  validateAndProceedToCheckout() {
+    this.showToast("⚡ Validating prices, taxes & live inventory...");
+    setTimeout(() => {
+      this.navigate("checkout");
+    }, 350);
+  }
+
+  updateQty(cartItemId, delta) {
+    appState.updateCartQuantity(cartItemId, delta);
+    this.renderCart();
+  }
+
+  confirmRemoveCartItem(cartItemId) {
+    const item = appState.state.cart.find(i => i.id === cartItemId);
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px; text-align:center;">
+        <div style="font-size:36px; margin-bottom:8px;">🗑️</div>
+        <h3 style="font-weight:800; font-size:15px;">Remove Item from Cart?</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin:4px 0 16px 0;">"${item?.name}" will be removed from your shopping bag.</p>
+        <div style="display:flex; gap:8px;">
+          <button class="tool-btn" style="flex:1; justify-content:center;" onclick="app.closeModal()">Keep Item</button>
+          <button class="tool-btn" style="flex:1; background:var(--danger); color:#fff; justify-content:center;" onclick="app.removeCartItem('${cartItemId}'); app.closeModal();">Remove</button>
+        </div>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  removeCartItem(cartItemId) {
+    appState.removeFromCart(cartItemId);
+    this.showToast("Item removed from cart");
+    this.renderCart();
+  }
+
+  saveItemForLater(cartItemId) {
+    appState.saveForLater(cartItemId);
+    this.showToast("Saved for later");
+    this.renderCart();
+  }
+
+  moveSavedToCart(savedId) {
+    appState.moveToCartFromSaved(savedId);
+    this.showToast("Moved back to cart!");
+    this.renderCart();
+  }
+
+  removeSavedItem(savedId) {
+    appState.removeSavedForLater(savedId);
+    this.showToast("Item deleted");
+    this.renderCart();
+  }
+
+  fillCoupon(code) {
+    const input = document.getElementById("couponCodeInput");
+    if (input) input.value = code;
+    this.applyCouponCode();
+  }
+
+  applyCouponCode() {
+    const input = document.getElementById("couponCodeInput");
+    if (!input || !input.value) return;
+    const res = appState.applyCoupon(input.value);
+    this.showToast(res.message);
+    this.renderCart();
+  }
+
+  removeCoupon() {
+    appState.removeCoupon();
+    this.showToast("Coupon removed");
+    this.renderCart();
+  }
+
+  // --- Module 7: Multi-Step Checkout Flow ---
+  renderCheckout() {
+    const container = document.getElementById("view-checkout");
+    if (!container) return;
+
+    const cartItems = appState.getCart();
+    if (cartItems.length === 0) {
+      this.navigate("cart");
+      return;
+    }
+
+    const addresses = appState.getAddresses();
+    const defaultAddr = appState.getDefaultAddress();
+    if (!this.checkoutState.selectedAddressId && defaultAddr) {
+      this.checkoutState.selectedAddressId = defaultAddr.id;
+    }
+
+    const selectedAddr = addresses.find(a => a.id === this.checkoutState.selectedAddressId) || defaultAddr;
+    const totals = appState.getCartTotals();
+    const step = this.checkoutState.step;
+
+    container.innerHTML = `
+      <!-- Checkout Stepper Indicator -->
+      <div class="checkout-stepper">
+        <div class="step-indicator ${step >= 1 ? "active" : ""} ${step > 1 ? "completed" : ""}">
+          <div class="step-circle">${step > 1 ? "✓" : "1"}</div>
+          <span class="step-label">Address</span>
+        </div>
+        <div class="step-indicator ${step >= 2 ? "active" : ""} ${step > 2 ? "completed" : ""}">
+          <div class="step-circle">${step > 2 ? "✓" : "2"}</div>
+          <span class="step-label">Delivery</span>
+        </div>
+        <div class="step-indicator ${step >= 3 ? "active" : ""} ${step > 3 ? "completed" : ""}">
+          <div class="step-circle">${step > 3 ? "✓" : "3"}</div>
+          <span class="step-label">Payment</span>
+        </div>
+        <div class="step-indicator ${step >= 4 ? "active" : ""}">
+          <div class="step-circle">4</div>
+          <span class="step-label">Review</span>
+        </div>
+      </div>
+
+      <div style="padding:16px;">
+        <!-- STEP 1: Address Selection -->
+        ${step === 1 ? `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <h3 style="font-size:14px; font-weight:800;">Select Delivery Address</h3>
+            <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openAddAddressModal()">+ Add New</button>
+          </div>
+          ${addresses.map(addr => `
+            <div class="address-card-item ${addr.id === this.checkoutState.selectedAddressId ? "selected" : ""}" onclick="app.checkoutState.selectedAddressId = '${addr.id}'; app.renderCheckout();">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong>${addr.fullName}</strong>
+                <span class="addr-tag">${addr.label}</span>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}</div>
+              <div style="font-size:11px; color:var(--text-subtle); margin-top:2px;">Phone: ${addr.phone}</div>
+            </div>
+          `).join("")}
+          <button class="checkout-cta-btn" style="margin-top:16px;" onclick="app.checkoutState.step = 2; app.renderCheckout();">
+            Continue to Delivery Options →
+          </button>
+        ` : ""}
+
+        <!-- STEP 2: Delivery Speed Option -->
+        ${step === 2 ? `
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Choose Delivery Speed</h3>
+          <div class="payment-method-card ${this.checkoutState.deliverySpeed === "standard" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'standard'; app.renderCheckout();">
+            <span style="font-size:24px;">📦</span>
+            <div>
+              <strong>Standard Delivery (FREE)</strong>
+              <div style="font-size:11px; color:var(--text-muted);">Estimated arrival in 2-3 business days</div>
+            </div>
+          </div>
+          <div class="payment-method-card ${this.checkoutState.deliverySpeed === "express" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'express'; app.renderCheckout();">
+            <span style="font-size:24px;">⚡</span>
+            <div>
+              <strong>Express Priority Delivery ($5.99)</strong>
+              <div style="font-size:11px; color:var(--text-muted);">Guaranteed Next-Day Delivery</div>
+            </div>
+          </div>
+          <div class="payment-method-card ${this.checkoutState.deliverySpeed === "same_day" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'same_day'; app.renderCheckout();">
+            <span style="font-size:24px;">🚀</span>
+            <div>
+              <strong>Same-Day Courier Delivery ($9.99)</strong>
+              <div style="font-size:11px; color:var(--text-muted);">Arrives today before 9 PM</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; margin-top:16px;">
+            <button class="tool-btn" style="flex:1;" onclick="app.checkoutState.step = 1; app.renderCheckout();">← Back</button>
+            <button class="checkout-cta-btn" style="flex:2;" onclick="app.checkoutState.step = 3; app.renderCheckout();">Proceed to Payment →</button>
+          </div>
+        ` : ""}
+
+        <!-- STEP 3: Payment Method -->
+        ${step === 3 ? `
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Select Payment Method</h3>
+          <div class="payment-method-card ${this.checkoutState.paymentMethod === "card" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'card'; app.renderCheckout();">
+            <span>💳</span>
+            <div>
+              <strong>Credit / Debit Card</strong>
+              <div style="font-size:11px; color:var(--text-muted);">Visa, Mastercard, Amex (3DS Verified)</div>
+            </div>
+          </div>
+
+          ${this.checkoutState.paymentMethod === "card" ? `
+            <div class="credit-card-preview">
+              <div class="card-chip"></div>
+              <div class="card-number-preview">•••• •••• •••• 4242</div>
+              <div style="display:flex; justify-content:space-between; font-size:12px;">
+                <span>ALEX MORGAN</span>
+                <span>12 / 28</span>
+              </div>
+            </div>
+          ` : ""}
+
+          <div class="payment-method-card ${this.checkoutState.paymentMethod === "upi" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'upi'; app.renderCheckout();">
+            <span>📱</span>
+            <div>
+              <strong>Instant UPI / Apple Pay / Google Pay</strong>
+              <div style="font-size:11px; color:var(--text-muted);">Instant zero-fee checkout</div>
+            </div>
+          </div>
+
+          <div class="payment-method-card ${this.checkoutState.paymentMethod === "cod" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'cod'; app.renderCheckout();">
+            <span>💵</span>
+            <div>
+              <strong>Cash on Delivery (COD)</strong>
+              <div style="font-size:11px; color:var(--text-muted);">Pay cash or UPI at delivery doorstep</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:16px;">
+            <button class="tool-btn" style="flex:1;" onclick="app.checkoutState.step = 2; app.renderCheckout();">← Back</button>
+            <button class="checkout-cta-btn" style="flex:2;" onclick="app.checkoutState.step = 4; app.renderCheckout();">Review Order →</button>
+          </div>
+        ` : ""}
+
+        <!-- STEP 4: Review & Place Order -->
+        ${step === 4 ? `
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Verify & Confirm Order</h3>
+          
+          <!-- Shipping Summary -->
+          <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted);">DELIVERING TO:</div>
+            <div style="font-size:13px; font-weight:700; margin-top:2px;">${selectedAddr?.fullName} (${selectedAddr?.label})</div>
+            <div style="font-size:12px; color:var(--text-muted);">${selectedAddr?.street}, ${selectedAddr?.city}</div>
+          </div>
+
+          <!-- Payment Summary -->
+          <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted);">PAYMENT METHOD:</div>
+            <div style="font-size:13px; font-weight:700; margin-top:2px;">
+              ${this.checkoutState.paymentMethod === "card" ? "Credit Card (Visa ending 4242)" : this.checkoutState.paymentMethod === "upi" ? "UPI / Instant App Pay" : "Cash on Delivery"}
+            </div>
+          </div>
+
+          <!-- Items preview -->
+          <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">ORDER ITEMS (${cartItems.length}):</div>
+            ${cartItems.map(item => `
+              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                <span>${item.quantity}x ${item.name}</span>
+                <strong>$${(item.price * item.quantity).toFixed(2)}</strong>
+              </div>
+            `).join("")}
+          </div>
+
+          <!-- Price Final -->
+          <div class="order-summary-card" style="margin:0 0 16px 0;">
+            <div class="summary-row"><span>Total Payable</span><strong style="color:var(--primary); font-size:16px;">$${totals.total.toFixed(2)}</strong></div>
+          </div>
+
+          <button class="checkout-cta-btn" onclick="app.triggerPaymentVerification()">
+            🔒 Place Order & Pay ($${totals.total.toFixed(2)})
+          </button>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  triggerPaymentVerification() {
+    if (this.checkoutState.paymentMethod === "card" || this.checkoutState.paymentMethod === "upi") {
+      const modalContent = `
+        <div class="bottom-sheet" style="padding:24px; text-align:center;">
+          <div style="font-size:36px; margin-bottom:8px;">🔐</div>
+          <h3 style="font-weight:800; font-size:16px;">Bank 3DS Security Verification</h3>
+          <p style="font-size:12px; color:var(--text-muted); margin:4px 0 16px 0;">Enter the 6-digit one-time passcode sent to +1 555-***-5678 to authorize payment.</p>
+          <input type="text" id="otpInputField" value="123456" maxlength="6" style="width:180px; text-align:center; letter-spacing:8px; font-size:20px; font-weight:800; padding:10px; border-radius:var(--radius-md); border:2px solid var(--primary); margin-bottom:16px;" />
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <button class="checkout-cta-btn" onclick="app.completeVerifiedPayment()">Verify & Confirm Order</button>
+            <button class="tool-btn" style="justify-content:center;" onclick="app.closeModal()">Cancel</button>
+          </div>
+        </div>
+      `;
+      this.openModal(modalContent);
+    } else {
+      this.placeOrderNow();
+    }
+  }
+
+  completeVerifiedPayment() {
+    this.closeModal();
+    this.placeOrderNow();
+  }
+
+  placeOrderNow() {
+    const totals = appState.getCartTotals();
+    const addresses = appState.getAddresses();
+    const selectedAddr = addresses.find(a => a.id === this.checkoutState.selectedAddressId) || appState.getDefaultAddress();
+
+    const orderPayload = {
+      address: selectedAddr,
+      deliverySpeed: this.checkoutState.deliverySpeed,
+      paymentMethod: this.checkoutState.paymentMethod,
+      paymentMethodLabel: this.checkoutState.paymentMethod === "card" ? "Credit Card (Visa ending 4242)" : this.checkoutState.paymentMethod === "upi" ? "UPI App Pay" : "Cash on Delivery",
+      subtotal: totals.subtotal,
+      discount: totals.discount,
+      deliveryFee: totals.deliveryFee,
+      tax: totals.tax,
+      total: totals.total
+    };
+
+    const newOrder = appState.createOrder(orderPayload);
+    this.checkoutState.step = 1;
+
+    // Render celebration modal
+    const celebrationContent = `
+      <div class="bottom-sheet" style="padding: 24px; text-align:center;">
+        <div class="celebration-icon-box">✓</div>
+        <h2 style="font-size:20px; font-weight:800; color:var(--text-main);">Order Placed Successfully!</h2>
+        <p style="font-size:13px; color:var(--text-muted); margin: 6px 0 16px 0;">Order #${newOrder.orderNumber} has been verified and sent to warehouse fulfillment.</p>
+        
+        <div style="background:var(--bg-surface-subtle); border-radius:var(--radius-lg); padding:14px; text-align:left; margin-bottom:16px; font-size:12px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span>Order Total:</span>
+            <strong>$${newOrder.total.toFixed(2)}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span>Expected Delivery:</span>
+            <strong>${newOrder.expectedDelivery}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span>Carrier:</span>
+            <strong>${newOrder.deliveryPartner.courier}</strong>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <button class="checkout-cta-btn" onclick="app.closeModal(); app.navigate('tracking', { orderId: '${newOrder.id}' })">
+            🚚 Track Package Live
+          </button>
+          <button class="tool-btn" style="padding:10px; justify-content:center;" onclick="app.closeModal(); app.navigate('home')">
+            Continue Shopping
+          </button>
+        </div>
+      </div>
+    `;
+    this.openModal(celebrationContent);
+  }
+
+  // --- Module 8: My Orders ---
+  renderOrders() {
+    const container = document.getElementById("view-orders");
+    if (!container) return;
+
+    let orders = [...appState.state.orders];
+    if (this.activeOrderTab === "active") {
+      orders = orders.filter(o => !["delivered", "cancelled"].includes(o.status));
+    } else if (this.activeOrderTab === "completed") {
+      orders = orders.filter(o => o.status === "delivered");
+    } else if (this.activeOrderTab === "cancelled") {
+      orders = orders.filter(o => o.status === "cancelled");
+    }
+
+    container.innerHTML = `
+      <!-- Order Tabs -->
+      <div class="order-tabs-header">
+        <button class="order-tab-btn ${this.activeOrderTab === "all" ? "active" : ""}" onclick="app.activeOrderTab = 'all'; app.renderOrders();">All</button>
+        <button class="order-tab-btn ${this.activeOrderTab === "active" ? "active" : ""}" onclick="app.activeOrderTab = 'active'; app.renderOrders();">Active</button>
+        <button class="order-tab-btn ${this.activeOrderTab === "completed" ? "active" : ""}" onclick="app.activeOrderTab = 'completed'; app.renderOrders();">Completed</button>
+        <button class="order-tab-btn ${this.activeOrderTab === "cancelled" ? "active" : ""}" onclick="app.activeOrderTab = 'cancelled'; app.renderOrders();">Cancelled</button>
+      </div>
+
+      <div style="padding-bottom: 20px;">
+        ${orders.length > 0 ? orders.map(order => `
+          <div class="order-card-wrap" onclick="app.navigate('order_details', { orderId: '${order.id}' })">
+            <div class="order-header-row">
+              <div>
+                <span style="font-weight:800; font-size:13px;">#${order.orderNumber}</span>
+                <div style="font-size:11px; color:var(--text-muted);">${order.date} • ${order.items.length} items</div>
+              </div>
+              <span class="order-status-badge status-${order.status}">
+                ${order.status.replace(/_/g, " ")}
+              </span>
+            </div>
+
+            <!-- Item Thumbs -->
+            <div style="display:flex; gap:8px; margin: 10px 0;">
+              ${order.items.map(it => `
+                <img src="${it.image}" style="width:48px; height:48px; border-radius:6px; object-fit:cover; border:1px solid var(--border-color);" alt="${it.name}" />
+              `).join("")}
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:8px; margin-top:8px; font-size:12px;">
+              <div>Total: <strong style="font-size:14px; color:var(--text-main);">$${order.total.toFixed(2)}</strong></div>
+              <div style="display:flex; gap:6px;">
+                ${order.status !== "cancelled" ? `
+                  <button class="tool-btn active" onclick="event.stopPropagation(); app.navigate('tracking', { orderId: '${order.id}' })">
+                    Track 🚚
+                  </button>
+                ` : ""}
+                <button class="tool-btn" onclick="event.stopPropagation(); app.navigate('order_details', { orderId: '${order.id}' })">
+                  Details →
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join("") : `
+          <div style="text-align:center; padding:50px 20px;">
+            <div style="font-size:40px;">📦</div>
+            <h3 style="font-size:16px; font-weight:800; margin-top:8px;">No Orders in this filter</h3>
+          </div>
+        `}
+      </div>
+    `;
+  }
+
+  // --- Module 9: Order Details & Visual Tracking Timeline ---
+  renderOrderDetails(orderId) {
+    const container = document.getElementById("view-order_details");
+    if (!container) return;
+
+    const order = appState.state.orders.find(o => o.id === orderId);
+    if (!order) {
+      this.navigate("orders");
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
+        <button onclick="app.navigate('orders')" style="font-weight:700; font-size:14px;">← Orders</button>
+        <span style="font-weight:800;">Order #${order.orderNumber}</span>
+        <button class="tool-btn" onclick="app.openInvoiceModal('${order.id}')">Invoice 📄</button>
+      </div>
+
+      <div style="padding:16px;">
+        <!-- Status Banner -->
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:11px; color:var(--text-muted);">STATUS</div>
+            <span class="order-status-badge status-${order.status}" style="margin-top:4px; display:inline-block;">
+              ${order.status.replace(/_/g, " ")}
+            </span>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="tool-btn" onclick="app.reorderItems('${order.id}')">🔄 Reorder</button>
+            ${order.status !== "cancelled" ? `
+              <button class="checkout-cta-btn" style="width:auto; height:36px; padding:0 14px; font-size:12px;" onclick="app.navigate('tracking', { orderId: '${order.id}' })">
+                Track →
+              </button>
+            ` : ""}
+          </div>
+        </div>
+
+        <!-- Items Card -->
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:14px; margin-bottom:12px;">
+          <h4 style="font-size:13px; font-weight:800; margin-bottom:10px;">Ordered Items</h4>
+          ${order.items.map(it => `
+            <div style="display:flex; gap:10px; margin-bottom:10px; padding-bottom:10px; border-bottom:1px solid var(--border-color);">
+              <img src="${it.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover;" />
+              <div style="flex:1;">
+                <div style="font-size:13px; font-weight:700;">${it.name}</div>
+                <div style="font-size:11px; color:var(--text-muted);">${it.variant || ""} • Qty: ${it.quantity}</div>
+                <div style="font-weight:800; font-size:13px; margin-top:2px;">$${(it.price * it.quantity).toFixed(2)}</div>
+              </div>
+              ${order.status === "delivered" ? `
+                <button class="tool-btn" style="align-self:center;" onclick="app.openReturnRequestModal('${order.id}', '${it.productId}')">Return</button>
+              ` : ""}
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Shipping & Payment Address -->
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:14px; margin-bottom:12px; font-size:12px;">
+          <h4 style="font-size:13px; font-weight:800; margin-bottom:6px;">Delivery Details</h4>
+          <div>${order.shippingAddress?.fullName}</div>
+          <div style="color:var(--text-muted);">${order.shippingAddress?.street}, ${order.shippingAddress?.city}, ${order.shippingAddress?.state} ${order.shippingAddress?.zip}</div>
+          <div style="margin-top:6px;">Payment: <strong>${order.paymentMethod}</strong> (${order.paymentStatus})</div>
+        </div>
+
+        <!-- Actions -->
+        ${order.canCancel ? `
+          <button class="tool-btn" style="width:100%; padding:10px; color:var(--danger); justify-content:center;" onclick="app.openCancelOrderModal('${order.id}')">
+            Cancel Order
+          </button>
+        ` : ""}
+      </div>
+    `;
+  }
+
+  reorderItems(orderId) {
+    const order = appState.state.orders.find(o => o.id === orderId);
+    if (!order) return;
+    order.items.forEach(it => {
+      appState.addToCart(it.productId, { color: it.variant, size: "Standard" }, it.quantity);
+    });
+    this.showToast("All items added back to your cart! 🛒");
+    this.navigate("cart");
+  }
+
+  renderTracking(orderId) {
+    const container = document.getElementById("view-tracking");
+    if (!container) return;
+
+    const order = appState.state.orders.find(o => o.id === orderId) || appState.state.orders[0];
+    if (!order) {
+      this.navigate("orders");
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="display:flex; align-items:center; padding:12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
+        <button onclick="app.navigate('order_details', { orderId: '${order.id}' })" style="font-weight:700;">← Details</button>
+      </div>
+
+      <!-- Out for Delivery Live Radar Simulation -->
+      ${order.status === "out_for_delivery" ? `
+        <div class="live-map-radar-box" style="margin: 16px;">
+          <div class="radar-sweep"></div>
+          <div style="position:relative; z-index:2;">
+            <div style="font-size:10px; color:var(--info); font-weight:800;">LIVE GPS RADAR</div>
+            <div style="font-weight:800; font-size:14px;">Courier En Route</div>
+            <div style="font-size:11px; opacity:0.8;">${order.deliveryPartner.liveLocation}</div>
+          </div>
+          <div class="delivery-driver-badge">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:20px;">🛵</span>
+              <div>
+                <div style="font-size:12px; font-weight:700;">${order.deliveryPartner.driverName}</div>
+                <div style="font-size:10px; opacity:0.8;">Rating: ${order.deliveryPartner.driverRating} ★</div>
+              </div>
+            </div>
+            <a href="tel:${order.deliveryPartner.driverPhone}" class="tool-btn" style="background:var(--success); color:#fff; font-size:11px;">Call Driver</a>
+          </div>
+        </div>
+      ` : ""}
+
+      <!-- 6-Stage Visual Timeline Stepper -->
+      <div class="tracking-timeline-box">
+        <h3 style="font-size:14px; font-weight:800; margin-bottom:16px;">Delivery Timeline</h3>
+        ${order.trackingTimeline.map((step, idx) => `
+          <div class="timeline-step-row ${step.completed ? "completed" : ""} ${order.status === step.step ? "current" : ""}">
+            <div class="timeline-icon-node">
+              ${step.completed ? "✓" : idx + 1}
+            </div>
+            <div class="timeline-content">
+              <div class="timeline-title">${step.title}</div>
+              <div class="timeline-desc">${step.desc}</div>
+              <div class="timeline-time">${step.time}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  advanceTrackingDemo(orderId) {
+    const updated = appState.advanceOrderTracking(orderId);
+    if (updated) {
+      this.showToast(`Order updated to: ${updated.status.replace(/_/g, " ")}`);
+      this.renderTracking(orderId);
+      this.updateBadges();
+    }
+  }
+
+  openInvoiceModal(orderId) {
+    const order = appState.state.orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <div class="sheet-header" style="padding:0 0 10px 0;">
+          <h3 style="font-weight:800;">Customer Invoice #${order.orderNumber}</h3>
+          <button onclick="app.closeModal()">✕</button>
+        </div>
+        <div style="font-size:12px; margin-top:10px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span>Date: ${order.date}</span>
+            <span>Payment: ${order.paymentStatus}</span>
+          </div>
+          <hr style="margin:10px 0; border:none; border-top:1px solid var(--border-color);" />
+          ${order.items.map(it => `
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+              <span>${it.quantity}x ${it.name}</span>
+              <span>$${(it.price * it.quantity).toFixed(2)}</span>
+            </div>
+          `).join("")}
+          <hr style="margin:10px 0; border:none; border-top:1px solid var(--border-color);" />
+          <div style="display:flex; justify-content:space-between;"><span>Subtotal:</span><span>$${order.subtotal.toFixed(2)}</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Tax (8%):</span><span>$${order.tax.toFixed(2)}</span></div>
+          <div style="display:flex; justify-content:space-between; font-weight:800; font-size:14px; margin-top:6px;"><span>Total:</span><span>$${order.total.toFixed(2)}</span></div>
+        </div>
+        <button class="checkout-cta-btn" style="margin-top:16px;" onclick="app.showToast('Invoice PDF downloaded!'); app.closeModal();">Download PDF Invoice</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  openCancelOrderModal(orderId) {
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; color:var(--danger);">Cancel Order #${orderId}</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin: 6px 0 12px 0;">Select a cancellation reason:</p>
+        <select id="cancelReasonSelect" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;">
+          <option value="Ordered by mistake">Ordered by mistake</option>
+          <option value="Found cheaper elsewhere">Found cheaper elsewhere</option>
+          <option value="Delivery time too long">Delivery time too long</option>
+          <option value="Changed payment method">Changed payment method</option>
+        </select>
+        <button class="checkout-cta-btn" style="background:var(--danger);" onclick="app.confirmCancelOrder('${orderId}')">Confirm Cancellation</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  confirmCancelOrder(orderId) {
+    const reason = document.getElementById("cancelReasonSelect")?.value || "User requested";
+    const res = appState.cancelOrder(orderId, reason);
+    this.closeModal();
+    this.showToast(res.message);
+    this.navigate("orders");
+  }
+
+  // --- Module 10: My Account & Profile ---
+  renderAccount() {
+    const container = document.getElementById("view-account");
+    if (!container) return;
+
+    const user = appState.state.user;
+    const addresses = appState.getAddresses();
+
+    container.innerHTML = `
+      <!-- User Profile Header -->
+      <div class="account-profile-card">
+        <img src="${user.avatar}" class="account-avatar" alt="${user.name}" />
+        <div style="flex:1;">
+          <div class="account-tier-pill">★ ${user.tier}</div>
+          <h2 style="font-size:16px; font-weight:800; margin-top:4px;">${user.name}</h2>
+          <div style="font-size:11px; color:var(--text-muted);">${user.email} • ${user.phone}</div>
+          <div style="font-size:11px; color:var(--primary); font-weight:700; margin-top:2px;">🪙 ${user.loyaltyPoints} Reward Points</div>
+        </div>
+        <button class="tool-btn" onclick="app.openEditProfileModal()">Edit</button>
+      </div>
+
+      <div class="account-menu-list">
+        <!-- Address Book Group -->
+        <div class="account-menu-group">
+          <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle); display:flex; justify-content:space-between; align-items:center;">
+            <span>📍 SAVED ADDRESSES (${addresses.length})</span>
+            <button onclick="app.openAddAddressModal()" style="color:var(--primary); font-weight:700;">+ Add New</button>
+          </div>
+          ${addresses.map(addr => `
+            <div class="account-menu-item">
+              <div>
+                <strong>${addr.fullName}</strong> <span class="addr-tag">${addr.label}</span> ${addr.isDefault ? `<span style="font-size:10px; color:var(--success); font-weight:700;">(Default)</span>` : ""}
+                <div style="font-size:11px; color:var(--text-muted);">${addr.street}, ${addr.city}</div>
+              </div>
+              <div style="display:flex; gap:6px;">
+                ${!addr.isDefault ? `<button class="tool-btn" onclick="app.setDefaultAddr('${addr.id}')">Set Default</button>` : ""}
+                <button class="tool-btn" style="color:var(--danger);" onclick="app.deleteAddr('${addr.id}')">✕</button>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+
+        <!-- Security & Preferences Group -->
+        <div class="account-menu-group">
+          <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle);">
+            🔒 SECURITY & PREFERENCES
+          </div>
+          <div class="account-menu-item">
+            <span>Two-Factor Authentication (2FA)</span>
+            <label class="switch-toggle">
+              <input type="checkbox" ${user.twoFactorEnabled ? "checked" : ""} onchange="app.toggle2FA()" />
+              <span class="slider-toggle"></span>
+            </label>
+          </div>
+          <div class="account-menu-item" onclick="app.openChangePasswordModal()">
+            <span>Change Password</span>
+            <span>→</span>
+          </div>
+          <div class="account-menu-item" onclick="app.openLoginHistoryModal()">
+            <span>Recent Login Activity</span>
+            <span>→</span>
+          </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="account-menu-group">
+          <div class="account-menu-item" onclick="app.navigate('returns')">
+            <span>🔄 Returns & Refunds Hub</span>
+            <span>→</span>
+          </div>
+          <div class="account-menu-item" onclick="app.navigate('support')">
+            <span>💬 Help Center & Live Support</span>
+            <span>→</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  openEditProfileModal() {
+    const u = appState.state.user;
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; margin-bottom:14px;">Edit Profile</h3>
+        <label style="font-size:12px; font-weight:700;">Full Name</label>
+        <input type="text" id="editUserName" value="${u.name}" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
+        <label style="font-size:12px; font-weight:700;">Email</label>
+        <input type="email" id="editUserEmail" value="${u.email}" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
+        <label style="font-size:12px; font-weight:700;">Phone Number</label>
+        <input type="text" id="editUserPhone" value="${u.phone}" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;" />
+        <button class="checkout-cta-btn" onclick="app.saveProfile()">Save Changes</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  saveProfile() {
+    const name = document.getElementById("editUserName")?.value;
+    const email = document.getElementById("editUserEmail")?.value;
+    const phone = document.getElementById("editUserPhone")?.value;
+    appState.updateProfile({ name, email, phone });
+    this.closeModal();
+    this.showToast("Profile Updated ✓");
+    this.renderAccount();
+  }
+
+  openAddAddressModal() {
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; margin-bottom:14px;">Add New Address</h3>
+        <input type="text" id="newAddrName" placeholder="Full Name" value="Alex Morgan" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <input type="text" id="newAddrStreet" placeholder="Street Address" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="newAddrCity" placeholder="City" style="flex:1; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+          <input type="text" id="newAddrZip" placeholder="Zip" style="width:100px; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+        </div>
+        <select id="newAddrTag" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:14px;">
+          <option value="Home">Home</option>
+          <option value="Work">Work</option>
+          <option value="Other">Other</option>
+        </select>
+        <button class="checkout-cta-btn" onclick="app.saveNewAddress()">Save Address</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  saveNewAddress() {
+    const fullName = document.getElementById("newAddrName")?.value || "Alex Morgan";
+    const street = document.getElementById("newAddrStreet")?.value || "123 Maple Street";
+    const city = document.getElementById("newAddrCity")?.value || "Portland";
+    const zip = document.getElementById("newAddrZip")?.value || "97201";
+    const label = document.getElementById("newAddrTag")?.value || "Home";
+
+    appState.addAddress({ fullName, street, city, zip, label, state: "OR", phone: "+1 555-234-5678" });
+    this.closeModal();
+    this.showToast("Address Added ✓");
+    if (this.currentView === "account") this.renderAccount();
+    if (this.currentView === "checkout") this.renderCheckout();
+  }
+
+  deleteAddr(id) {
+    appState.deleteAddress(id);
+    this.showToast("Address deleted");
+    this.renderAccount();
+  }
+
+  setDefaultAddr(id) {
+    appState.setDefaultAddress(id);
+    this.showToast("Default address updated");
+    this.renderAccount();
+  }
+
+  toggle2FA() {
+    const enabled = appState.toggle2FA();
+    this.showToast(enabled ? "2FA Enabled ✓" : "2FA Disabled");
+  }
+
+  openChangePasswordModal() {
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; margin-bottom:14px;">Change Password</h3>
+        <input type="password" placeholder="Current Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
+        <input type="password" placeholder="New Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
+        <input type="password" placeholder="Confirm New Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;" />
+        <button class="checkout-cta-btn" onclick="app.showToast('Password updated successfully! ✓'); app.closeModal();">Update Password</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  openLoginHistoryModal() {
+    const logs = appState.state.user.loginHistory;
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; margin-bottom:12px;">Recent Login Activity</h3>
+        ${logs.map(l => `
+          <div style="padding:10px; background:var(--bg-surface-subtle); border-radius:var(--radius-md); margin-bottom:8px; font-size:12px;">
+            <div style="display:flex; justify-content:space-between; font-weight:700;">
+              <span>${l.device}</span>
+              ${l.current ? `<span style="color:var(--success);">(Current Session)</span>` : ""}
+            </div>
+            <div style="color:var(--text-muted); margin-top:2px;">${l.location} • ${l.time} • IP: ${l.ip}</div>
+          </div>
+        `).join("")}
+        <button class="tool-btn" style="width:100%; margin-top:10px; justify-content:center;" onclick="app.closeModal()">Close</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  // --- Module 11: Returns & Refunds ---
+  renderReturns() {
+    const container = document.getElementById("view-returns");
+    if (!container) return;
+
+    const returns = appState.state.returns;
+    const deliveredOrders = appState.state.orders.filter(o => o.status === "delivered");
+
+    container.innerHTML = `
+      <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+        <button onclick="app.navigate('account')" style="font-weight:700;">← Account</button>
+        <h2 style="font-size:15px; font-weight:800;">Returns & Refunds Hub</h2>
+        <span></span>
+      </div>
+
+      <div style="padding:16px;">
+        <!-- Eligible items banner -->
+        ${deliveredOrders.length > 0 ? `
+          <div style="background:var(--primary-light); border:1px solid var(--primary); border-radius:var(--radius-lg); padding:12px; margin-bottom:16px; font-size:12px;">
+            <strong>📦 Delivered items eligible for return (15-Day Window):</strong>
+            <div style="margin-top:6px;">
+              ${deliveredOrders.map(o => `
+                <button class="tool-btn active" style="margin-right:6px; margin-top:4px;" onclick="app.openReturnRequestModal('${o.id}', '${o.items[0].productId}')">
+                  Return item from #${o.orderNumber}
+                </button>
+              `).join("")}
+            </div>
+          </div>
+        ` : ""}
+
+        <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Active & Past Returns (${returns.length})</h3>
+        ${returns.map(ret => `
+          <div class="return-card-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong>Return #${ret.id}</strong>
+              <span class="order-status-badge status-delivered">${ret.status}</span>
+            </div>
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+              <img src="${ret.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover;" />
+              <div>
+                <div style="font-size:13px; font-weight:700;">${ret.productName}</div>
+                <div style="font-size:11px; color:var(--text-muted);">Refund: $${ret.refundAmount.toFixed(2)} to ${ret.refundMethod}</div>
+                <div style="font-size:10px; color:var(--primary); font-weight:700; margin-top:2px;">${ret.erpStatus}</div>
+              </div>
+            </div>
+
+            <!-- Return Stepper Timeline -->
+            <div style="background:var(--bg-surface-subtle); padding:10px; border-radius:var(--radius-md); font-size:11px;">
+              ${ret.timeline.map(t => `
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:${t.done ? "var(--text-main)" : "var(--text-subtle)"};">
+                  <span>${t.done ? "✓" : "○"} ${t.title}</span>
+                  <span style="font-size:10px;">${t.date}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  openReturnRequestModal(orderId, productId) {
+    const order = appState.state.orders.find(o => o.id === orderId);
+    const item = order?.items.find(i => i.productId === productId) || order?.items[0];
+
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; margin-bottom:10px;">Request Return for ${item?.name}</h3>
+        
+        <label style="font-size:12px; font-weight:700;">Reason for Return</label>
+        <select id="returnReasonSelect" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 6px 0 10px 0;">
+          <option value="Item defective or not working">Item defective or not working</option>
+          <option value="Size is too tight / loose">Size is too tight / loose</option>
+          <option value="Wrong item delivered">Wrong item delivered</option>
+          <option value="Item not as described">Item not as described</option>
+        </select>
+
+        <label style="font-size:12px; font-weight:700;">Return Pickup Method</label>
+        <select id="returnPickupMethod" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 6px 0 10px 0;">
+          <option value="Doorstep Courier Pickup">Doorstep Courier Pickup (Courier collects from your home)</option>
+          <option value="Drop at Nearest Center">Drop at Nearest Logistics Center</option>
+        </select>
+
+        <label style="font-size:12px; font-weight:700;">Refund Preference</label>
+        <select id="returnRefundMethod" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 6px 0 16px 0;">
+          <option value="Original Payment Method">Original Payment Method (Refund to Visa Card)</option>
+          <option value="Store Credit / Wallet">Store Credit (Instant + 5% Bonus)</option>
+        </select>
+
+        <button class="checkout-cta-btn" onclick="app.submitReturn('${orderId}', '${item?.productId}')">
+          Submit Return Request
+        </button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  submitReturn(orderId, productId) {
+    const reason = document.getElementById("returnReasonSelect")?.value || "Defective";
+    const method = document.getElementById("returnRefundMethod")?.value || "Original Payment";
+    appState.requestReturn(orderId, productId, reason, null, method);
+    this.closeModal();
+    this.showToast("Return request approved! Doorstep pickup scheduled.");
+    this.navigate("returns");
+  }
+
+  // --- Module 12: Customer Reviews & Ratings ---
   renderReviews(productId) {
     const container = document.getElementById("view-reviews");
     if (!container) return;
@@ -929,50 +2033,33 @@ class StorefrontApp {
     const reviews = appState.getProductReviews(product.id);
 
     container.innerHTML = `
-      <div class="reviews-header-bar">
-        <button onclick="app.navigate('pdp', { productId: '${product.id}' })" class="reviews-back-btn">← Back to Product</button>
-        <span class="reviews-badge">🔒 Verified Purchases Only</span>
+      <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+        <button onclick="app.navigate('pdp', { productId: '${product.id}' })" style="font-weight:700;">← Product</button>
+        <h2 style="font-size:15px; font-weight:800;">Customer Reviews</h2>
+        <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openWriteReviewModal('${product.id}')">+ Write Review</button>
       </div>
 
-      <div class="reviews-content-body">
-        <!-- Product Summary Header -->
-        <div class="reviews-product-summary-card">
-          <img src="${product.images[0]}" class="reviews-prod-thumb" alt="${product.name}" />
-          <div>
-            <div style="font-size:14px; font-weight:800;">${product.name}</div>
-            <div style="font-size:11px; color:var(--text-muted);">${product.brand} • ${product.categoryName}</div>
-          </div>
-        </div>
-
-        <!-- Rating Score & Distribution Box -->
-        <div class="reviews-score-card">
-          <div class="rating-big-box">
-            <div class="rating-big-number">${product.rating}</div>
+      <div style="padding:16px;">
+        <!-- Rating Summary Box -->
+        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-xl); padding:16px; display:flex; align-items:center; gap:20px; margin-bottom:16px;">
+          <div style="text-align:center;">
+            <div style="font-size:36px; font-weight:800; color:var(--text-main); line-height:1;">${product.rating}</div>
             <div style="color:#f59e0b; font-size:16px; margin:4px 0;">★★★★★</div>
-            <div style="font-size:11px; color:var(--text-muted);">${reviews.length} customer ratings</div>
+            <div style="font-size:11px; color:var(--text-muted);">${reviews.length} reviews</div>
           </div>
-          <div class="rating-progress-breakdown">
-            <div class="progress-row"><span>5★</span><div class="progress-track"><div class="progress-fill" style="width:85%;"></div></div><span>85%</span></div>
-            <div class="progress-row"><span>4★</span><div class="progress-track"><div class="progress-fill" style="width:12%;"></div></div><span>12%</span></div>
-            <div class="progress-row"><span>3★</span><div class="progress-track"><div class="progress-fill" style="width:3%;"></div></div><span>3%</span></div>
-            <div class="progress-row"><span>2★</span><div class="progress-track"><div class="progress-fill" style="width:0%;"></div></div><span>0%</span></div>
-            <div class="progress-row"><span>1★</span><div class="progress-track"><div class="progress-fill" style="width:0%;"></div></div><span>0%</span></div>
+          <div style="flex:1; font-size:11px; color:var(--text-muted);">
+            <div>5★ Verified Buyer High Satisfaction</div>
+            <div style="margin-top:4px;">96% of customers recommend this item</div>
           </div>
-        </div>
-
-        <!-- Verified Reviews Header -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin:16px 0 10px 0;">
-          <h3 style="font-size:14px; font-weight:800;">Customer Reviews (${reviews.length})</h3>
-          <span style="font-size:11px; color:var(--text-muted);">Sorted by Most Helpful</span>
         </div>
 
         <!-- Reviews List -->
-        ${reviews.length > 0 ? reviews.map(rev => `
+        ${reviews.map(rev => `
           <div class="review-item-card">
             <div class="review-item-header">
               <div>
                 <strong>${rev.user}</strong>
-                ${rev.verified ? `<span class="verified-buyer-tag">✓ Verified Buyer (Delivered)</span>` : ""}
+                ${rev.verified ? `<span class="verified-buyer-tag">✓ Verified Buyer</span>` : ""}
               </div>
               <span style="font-size:11px; color:var(--text-subtle);">${rev.date}</span>
             </div>
@@ -981,82 +2068,381 @@ class StorefrontApp {
             </div>
             <h5 style="font-size:13px; font-weight:700; margin-bottom:4px;">${rev.title}</h5>
             <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">${rev.comment}</p>
-            
-            ${rev.photos && rev.photos.length > 0 ? `
-              <div class="review-photo-preview-grid">
-                ${rev.photos.map(p => `<img src="${p}" class="review-photo-thumb" alt="Product Review Photo" onclick="window.open('${p}', '_blank')" />`).join("")}
-              </div>
-            ` : ""}
-
             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:11px;">
-              <button onclick="app.voteReviewHelpful('${product.id}', '${rev.id}')" style="color:var(--text-muted); cursor:pointer;">
+              <button onclick="app.voteReviewHelpful('${product.id}', '${rev.id}')" style="color:var(--text-muted);">
                 👍 Helpful (${rev.helpful || 0})
               </button>
             </div>
           </div>
-        `).join("") : `
-          <div class="empty-state-box">
-            <div style="font-size:36px;">⭐</div>
-            <p style="font-size:12px; color:var(--text-muted); margin-top:6px;">No reviews yet for this item</p>
-          </div>
-        `}
+        `).join("")}
       </div>
     `;
+  }
+
+  openWriteReviewModal(productId) {
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; margin-bottom:12px;">Write a Customer Review</h3>
+        <label style="font-size:12px; font-weight:700;">Your Rating</label>
+        <div class="star-rating-picker" id="reviewStarPicker" style="margin: 6px 0 12px 0;">
+          <span class="star active" onclick="app.setReviewRating(1)">★</span>
+          <span class="star active" onclick="app.setReviewRating(2)">★</span>
+          <span class="star active" onclick="app.setReviewRating(3)">★</span>
+          <span class="star active" onclick="app.setReviewRating(4)">★</span>
+          <span class="star active" onclick="app.setReviewRating(5)">★</span>
+        </div>
+        <input type="hidden" id="selectedStarValue" value="5" />
+
+        <label style="font-size:12px; font-weight:700;">Review Title</label>
+        <input type="text" id="reviewTitleInput" placeholder="e.g. Absolutely exceptional quality!" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 4px 0 10px 0;" />
+
+        <label style="font-size:12px; font-weight:700;">Detailed Feedback</label>
+        <textarea id="reviewTextInput" rows="3" placeholder="Share your honest experience..." style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 4px 0 14px 0;"></textarea>
+
+        <button class="checkout-cta-btn" onclick="app.submitReview('${productId}')">Submit Review</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  setReviewRating(rating) {
+    document.getElementById("selectedStarValue").value = rating;
+    const stars = document.querySelectorAll("#reviewStarPicker .star");
+    stars.forEach((s, idx) => {
+      s.classList.toggle("active", idx < rating);
+    });
+  }
+
+  submitReview(productId) {
+    const rating = document.getElementById("selectedStarValue")?.value || 5;
+    const title = document.getElementById("reviewTitleInput")?.value || "Great Product!";
+    const text = document.getElementById("reviewTextInput")?.value || "Very satisfied with my purchase.";
+
+    appState.addReview(productId, rating, title, text);
+    this.closeModal();
+    this.showToast("Review submitted & published live! ★");
+    this.renderReviews(productId);
   }
 
   voteReviewHelpful(productId, reviewId) {
     appState.voteReviewHelpful(productId, reviewId);
-    this.showToast("Thank you for your feedback! 👍");
+    this.renderReviews(productId);
+    this.showToast("Thank you for your feedback!");
   }
 
-  // =========================================================================
-  // HELPER: Reusable Product Card HTML Template
-  // =========================================================================
-  renderProductCardHtml(product, mode = "grid") {
-    const isInWish = appState.isInWishlist(product.id);
+  // --- Module 13: Notification Center ---
+  renderNotifications() {
+    const container = document.getElementById("view-notifications");
+    if (!container) return;
 
-    return `
-      <div class="product-card ${mode === "horizontal" ? "product-card-horizontal" : mode === "list" ? "product-card-list" : "product-card-grid"}" 
-        onclick="app.navigate('pdp', { productId: '${product.id}' })">
-        
-        <div class="product-card-img-wrap">
-          <img src="${product.images[0]}" class="product-img" alt="${product.name}" loading="lazy" />
-          
-          <!-- Badges -->
-          ${product.isDeal ? `<span class="product-badge badge-deal">-${product.discountPercent}%</span>` : ""}
-          ${product.isNew && !product.isDeal ? `<span class="product-badge badge-new">NEW</span>` : ""}
-          
-          <!-- Heart Button -->
-          <button class="wishlist-heart-btn ${isInWish ? "active" : ""}" 
-            onclick="event.stopPropagation(); app.toggleProductWishlist('${product.id}')" title="Add to Wishlist">
-            ${isInWish ? "♥" : "♡"}
+    let notifs = appState.getNotifications();
+    if (this.activeNotifTab !== "all") {
+      notifs = notifs.filter(n => n.category === this.activeNotifTab);
+    }
+
+    container.innerHTML = `
+      <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+        <h2 style="font-size:16px; font-weight:800;">Notifications</h2>
+        <button onclick="app.markAllNotifsRead()" style="font-size:12px; color:var(--primary); font-weight:700;">Mark all as read</button>
+      </div>
+
+      <!-- Categories filter -->
+      <div class="category-filter-tabs" style="padding:10px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
+        ${["all", "shipping", "orders", "returns", "promos"].map(cat => `
+          <button class="cat-tab-pill ${this.activeNotifTab === cat ? "active" : ""}" onclick="app.activeNotifTab = '${cat}'; app.renderNotifications();">
+            ${cat.toUpperCase()}
           </button>
-        </div>
+        `).join("")}
+      </div>
 
-        <div class="product-card-body">
-          <div class="product-brand">${product.brand}</div>
-          <h4 class="product-title">${product.name}</h4>
-          
-          <div class="product-rating-row">
-            <span class="rating-star">★</span>
-            <span>${product.rating}</span>
-            <span style="font-size:10px; color:var(--text-subtle);">(${product.reviewCount})</span>
+      <div>
+        ${notifs.map(n => `
+          <div class="notification-card ${!n.read ? "unread" : ""}" onclick="app.handleNotifClick('${n.id}', '${n.deepLink || ""}', '${n.targetId || ""}')">
+            <div style="flex:1;">
+              <div style="font-size:13px; font-weight:700; color:var(--text-main);">${n.title}</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${n.message}</div>
+              <div style="font-size:10px; color:var(--text-subtle); margin-top:4px;">${n.time}</div>
+            </div>
+            <button onclick="event.stopPropagation(); app.deleteNotif('${n.id}')" style="color:var(--text-subtle); font-size:14px;">✕</button>
           </div>
+        `).join("")}
+      </div>
+    `;
+  }
 
-          <div class="product-price-row">
-            <span class="current-price">$${product.price.toFixed(2)}</span>
-            ${product.originalPrice ? `<span class="original-price">$${product.originalPrice.toFixed(2)}</span>` : ""}
+  handleNotifClick(notifId, deepLink, targetId) {
+    appState.markNotificationRead(notifId);
+    this.updateBadges();
+    if (deepLink === "view_tracking" && targetId) {
+      this.navigate("tracking", { orderId: targetId });
+    } else if (deepLink === "view_order_details" && targetId) {
+      this.navigate("order_details", { orderId: targetId });
+    } else if (deepLink === "view_returns") {
+      this.navigate("returns");
+    } else if (deepLink === "view_cart") {
+      this.navigate("cart");
+    } else {
+      this.renderNotifications();
+    }
+  }
+
+  markAllNotifsRead() {
+    appState.markAllNotificationsRead();
+    this.updateBadges();
+    this.renderNotifications();
+    this.showToast("All marked as read");
+  }
+
+  deleteNotif(id) {
+    appState.deleteNotification(id);
+    this.updateBadges();
+    this.renderNotifications();
+  }
+
+  // --- Module 14: Customer Support & Live Chat ---
+  renderSupport() {
+    const container = document.getElementById("view-support");
+    if (!container) return;
+
+    const faqs = SEED_DATA.faqs;
+    const tickets = appState.state.tickets;
+
+    container.innerHTML = `
+      <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
+        <button onclick="app.navigate('account')" style="font-weight:700;">← Account</button>
+        <h2 style="font-size:16px; font-weight:800;">Help & Live Support</h2>
+        <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openRaiseTicketModal()">+ Raise Claim</button>
+      </div>
+
+      <div style="padding:16px;">
+        <!-- Active Tickets / Claims -->
+        <h3 style="font-size:14px; font-weight:800; margin-bottom:10px;">Support Inquiries & Claims</h3>
+        ${tickets.map(t => `
+          <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong>${t.id}: ${t.subject}</strong>
+              <span class="order-status-badge status-${t.status === "Resolved" ? "delivered" : "processing"}">${t.status}</span>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Category: ${t.category} • ${t.date}</div>
+            
+            <!-- Chat simulation box -->
+            <div class="chat-messages-container" style="height:140px; margin-top:8px; background:var(--bg-surface-subtle); border-radius:var(--radius-md); padding:10px;">
+              ${t.messages.map(m => `
+                <div class="chat-bubble ${m.sender === "user" ? "user" : "agent"}" style="font-size:11px; padding:6px 10px;">
+                  ${m.text}
+                </div>
+              `).join("")}
+            </div>
+
+            <div style="display:flex; gap:6px; margin-top:8px;">
+              <input type="text" id="chatInput_${t.id}" placeholder="Type your reply to care agent..." style="flex:1; padding:6px 10px; border-radius:var(--radius-sm); border:1px solid var(--border-color); font-size:12px;" onkeydown="if(event.key==='Enter') app.sendTicketChat('${t.id}')" />
+              <button class="tool-btn active" onclick="app.sendTicketChat('${t.id}')">Send</button>
+            </div>
+            ${t.status !== "Resolved" ? `
+              <button class="tool-btn" style="margin-top:6px; font-size:11px; color:var(--success);" onclick="app.closeTicketAndRate('${t.id}')">✓ Mark Solved & Rate</button>
+            ` : ""}
           </div>
+        `).join("")}
+
+        <!-- FAQ Accordion -->
+        <h3 style="font-size:14px; font-weight:800; margin: 20px 0 10px 0;">Frequently Asked Questions</h3>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${faqs.map((f, i) => `
+            <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-md); overflow:hidden;">
+              <div style="padding:12px 14px; font-weight:700; font-size:13px; display:flex; justify-content:space-between; cursor:pointer;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block';">
+                <span>${f.question}</span>
+                <span>▾</span>
+              </div>
+              <div style="display:none; padding: 0 14px 12px 14px; font-size:12px; color:var(--text-muted); line-height:1.4;">
+                ${f.answer}
+                <div style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border-color); display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+                  <span>Did this answer help?</span>
+                  <div style="display:flex; gap:6px;">
+                    <button class="tool-btn" style="font-size:10px;" onclick="app.showToast('Thanks for your feedback! 👍')">👍 Yes</button>
+                    <button class="tool-btn" style="font-size:10px;" onclick="app.openRaiseTicketModal('${f.category}')">👎 No, Raise Ticket</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join("")}
         </div>
       </div>
     `;
   }
 
-  toggleProductWishlist(productId) {
-    const added = appState.toggleWishlist(productId);
-    this.showToast(added ? "Saved to Favorites ❤️" : "Removed from Favorites");
+  sendTicketChat(ticketId) {
+    const input = document.getElementById(`chatInput_${ticketId}`);
+    if (!input || !input.value.trim()) return;
+    appState.sendChatMessage(ticketId, input.value.trim());
+    input.value = "";
+    this.renderSupport();
+  }
+
+  closeTicketAndRate(ticketId) {
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px; text-align:center;">
+        <h3 style="font-weight:800; margin-bottom:8px;">Rate Support Experience</h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">How satisfied were you with our customer resolution?</p>
+        <div class="star-rating-picker" style="justify-content:center; margin-bottom:16px;">
+          <span class="star active" onclick="this.parentElement.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('active', i<1))">★</span>
+          <span class="star active" onclick="this.parentElement.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('active', i<2))">★</span>
+          <span class="star active" onclick="this.parentElement.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('active', i<3))">★</span>
+          <span class="star active" onclick="this.parentElement.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('active', i<4))">★</span>
+          <span class="star active" onclick="this.parentElement.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('active', i<5))">★</span>
+        </div>
+        <button class="checkout-cta-btn" onclick="app.submitTicketRating('${ticketId}')">Submit Feedback & Close Ticket</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  submitTicketRating(ticketId) {
+    const ticket = appState.state.tickets.find(t => t.id === ticketId);
+    if (ticket) ticket.status = "Resolved";
+    this.closeModal();
+    this.showToast("Thank you for your rating! Ticket marked as Resolved ✓");
+    this.renderSupport();
+  }
+
+  openRaiseTicketModal(prefilledCategory = null) {
+    const modalContent = `
+      <div class="bottom-sheet" style="padding:20px;">
+        <h3 style="font-weight:800; margin-bottom:12px;">Raise a Support Claim / Ticket</h3>
+        <label style="font-size:12px; font-weight:700;">Issue Category</label>
+        <select id="ticketCategorySelect" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 4px 0 10px 0;">
+          <option value="Delivery Delay" ${prefilledCategory?.includes("Orders") ? "selected" : ""}>Delivery Delay / Tracking</option>
+          <option value="Payment Inquiry" ${prefilledCategory?.includes("Payments") ? "selected" : ""}>Payment / Refund Inquiry</option>
+          <option value="Damaged Item" ${prefilledCategory?.includes("Returns") ? "selected" : ""}>Damaged Item on Arrival</option>
+          <option value="ERP Sales Return Sync">ERP Sales Return Sync</option>
+        </select>
+        <label style="font-size:12px; font-weight:700;">Subject</label>
+        <input type="text" id="ticketSubjectInput" placeholder="Brief summary of problem" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 4px 0 10px 0;" />
+        <label style="font-size:12px; font-weight:700;">Message</label>
+        <textarea id="ticketMessageInput" rows="3" placeholder="Describe the issue in detail..." style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 4px 0 14px 0;"></textarea>
+        <button class="checkout-cta-btn" onclick="app.submitNewTicket()">Submit Ticket</button>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
+  submitNewTicket() {
+    const cat = document.getElementById("ticketCategorySelect")?.value || "General";
+    const sub = document.getElementById("ticketSubjectInput")?.value || "Support inquiry";
+    const msg = document.getElementById("ticketMessageInput")?.value || "Need help with my order.";
+
+    appState.createSupportTicket(cat, sub, null, msg);
+    this.closeModal();
+    this.showToast("Support Ticket Raised ✓");
+    this.renderSupport();
+  }
+
+  // --- Modals, Banners & Toasts ---
+  openModal(contentHtml) {
+    const overlay = document.getElementById("appModalOverlay");
+    if (overlay) {
+      overlay.innerHTML = contentHtml;
+      overlay.classList.add("active");
+    }
+  }
+
+  closeModal() {
+    const overlay = document.getElementById("appModalOverlay");
+    if (overlay) {
+      overlay.classList.remove("active");
+      overlay.innerHTML = "";
+    }
+  }
+
+  showToast(message) {
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+
+    const toast = document.createElement("div");
+    toast.className = "toast-item";
+    toast.innerHTML = `<span>${message}</span>`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => toast.remove(), 300);
+    }, 2400);
+  }
+
+  // --- Timers & Background Autoplay ---
+  startDealsTimer() {
+    let seconds = 45;
+    let minutes = 32;
+    let hours = 14;
+
+    this.dealTimerInterval = setInterval(() => {
+      seconds--;
+      if (seconds < 0) {
+        seconds = 59;
+        minutes--;
+        if (minutes < 0) {
+          minutes = 59;
+          hours--;
+        }
+      }
+      const sEl = document.getElementById("dealSecs");
+      const mEl = document.getElementById("dealMins");
+      const hEl = document.getElementById("dealHours");
+      if (sEl) sEl.textContent = seconds.toString().padStart(2, "0");
+      if (mEl) mEl.textContent = minutes.toString().padStart(2, "0");
+      if (hEl) hEl.textContent = hours.toString().padStart(2, "0");
+    }, 1000);
+  }
+
+  startBannerAutoplay() {
+    this.bannerInterval = setInterval(() => {
+      const track = document.getElementById("bannerTrack");
+      if (track) {
+        this.activeBannerSlide = (this.activeBannerSlide + 1) % SEED_DATA.banners.length;
+        track.style.transform = `translateX(-${this.activeBannerSlide * 100}%)`;
+        document.querySelectorAll(".banner-dot").forEach((d, i) => {
+          d.classList.toggle("active", i === this.activeBannerSlide);
+        });
+      }
+    }, 4500);
+  }
+
+  handleBannerClick(catId, prodId) {
+    if (prodId) {
+      this.openProduct(prodId);
+    } else if (catId) {
+      this.filterByCategory(catId);
+    } else {
+      this.navigate("catalog");
+    }
+  }
+
+  // --- Global Event Bindings ---
+  bindEvents() {
+    // State subscription
+    appState.subscribe("*", () => {
+      this.updateBadges();
+    });
+
+    // Close modal on outside click
+    const overlay = document.getElementById("appModalOverlay");
+    if (overlay) {
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) this.closeModal();
+      });
+    }
+  }
+
+  resetAllData() {
+    if (confirm("Reset all cart, orders, and addresses to initial demo data?")) {
+      appState.resetDemoData();
+      this.showToast("Demo Data Reset Successfully");
+      this.navigate("home");
+    }
   }
 }
 
-// Global Application Controller Instance
-const app = new StorefrontApp();
+// Global App Instance
+const app = new AppController();
+document.addEventListener("DOMContentLoaded", () => {
+  app.init();
+});
