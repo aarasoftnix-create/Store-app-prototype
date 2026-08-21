@@ -1,124 +1,194 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>SoftnixStore - Customer Storefront & Catalog</title>
+  <title>SoftnixStore Mobile • NextGen E-Commerce Customer App</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+
+  <!-- Styles -->
   <link rel="stylesheet" href="css/styles.css" />
 </head>
+
 <body>
 
-  <!-- Top Desktop Emulator & Device View Switcher -->
-  <div class="desktop-preview-bar">
-    <div class="preview-brand-label">
-      <span style="font-size:18px;">⚡</span>
-      <span>SoftnixStore</span>
-      <span class="preview-badge">Storefront & Catalog Module</span>
-    </div>
-
-    <!-- Responsive Device Mode Toolbar -->
+  <div class="emulator-wrapper">
+    <!-- Desktop Emulator Top Toolbar -->
     <div class="emulator-toolbar">
-      <button class="tool-btn active" id="btn-mode-iphone" onclick="app.setDeviceMode('iphone')">
-        📱 iPhone 15 Pro
-      </button>
-      <button class="tool-btn" id="btn-mode-android" onclick="app.setDeviceMode('android')">
-        📱 Android
-      </button>
-      <button class="tool-btn" id="btn-mode-responsive" onclick="app.setDeviceMode('responsive')">
-        🖥️ Full View
-      </button>
-      <button class="tool-btn" onclick="app.toggleTheme()">
-        🌓 Theme
-      </button>
-      <button class="tool-btn" onclick="appState.resetDemoData()">
-        🔄 Reset Data
-      </button>
-    </div>
-  </div>
+      <div class="toolbar-brand">
+        <span>⚡ SoftnixStore Mobile</span>
+        <span class="badge">ERP Cloud Customer App</span>
+      </div>
 
-  <!-- Smartphone Hardware Shell Mockup -->
-  <div class="device-container mode-iphone" id="deviceContainer">
-    <!-- Dynamic Island Notch -->
-    <div class="device-notch">
-      <span style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></span>
-      <span style="font-size:9px; font-weight:700; color:#3b82f6;">● Storefront</span>
-      <span style="width:6px; height:6px; border-radius:50%; background:#334155;"></span>
-    </div>
+      <div class="toolbar-actions">
+        <!-- Device Switcher -->
+        <button class="tool-btn device-mode-btn active" data-mode="iphone" onclick="app.setDeviceMode('iphone')">
+          📱 iPhone 15 Pro
+        </button>
+        <button class="tool-btn device-mode-btn" data-mode="android" onclick="app.setDeviceMode('android')">
+          📱 Android
+        </button>
+        <button class="tool-btn device-mode-btn" data-mode="responsive" onclick="app.setDeviceMode('responsive')">
+          💻 Full View
+        </button>
 
-    <!-- Smartphone Top Status Bar -->
-    <div class="device-status-bar">
-      <span>9:41</span>
-      <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:11px;">5G</span>
-        <span style="font-size:11px;">100% 🔋</span>
+        <!-- Theme Toggle -->
+        <button class="tool-btn" onclick="app.toggleTheme()">
+          🌓 Theme
+        </button>
+
+        <!-- Reset State -->
+        <button class="tool-btn" style="color:#f87171;" onclick="app.resetAllData()">
+          🔄 Reset Data
+        </button>
       </div>
     </div>
 
-    <!-- Application Core Shell -->
-    <div class="app-shell">
-      <!-- Sticky Mobile Header -->
-      <header class="app-header">
-        <div class="brand-logo" onclick="app.navigate('home')" style="cursor:pointer;">
-          <div class="brand-logo-icon">⚡</div>
-          <span>SoftnixStore</span>
+    <!-- Smartphone Hardware Shell Mockup -->
+    <div class="device-container mode-iphone" id="deviceContainer">
+      <!-- Notch / Dynamic Island -->
+      <div class="device-notch">
+        <span class="sensor"></span>
+        <span style="font-size:9px; font-weight:700; color:#3b82f6;">● GPS Live</span>
+        <span class="camera-lens"></span>
+      </div>
+
+      <!-- Smartphone Top Status Bar -->
+      <div class="device-status-bar">
+        <span>9:41</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:11px;">5G</span>
+          <span style="font-size:11px;">100% 🔋</span>
         </div>
+      </div>
 
-        <div class="header-actions">
-          <button class="header-icon-btn" onclick="app.navigate('search')" title="Search Products">
-            🔍
+      <!-- Application Core Shell -->
+      <div class="app-shell">
+        <!-- Sticky Mobile App Header -->
+        <header class="app-header">
+          <div class="header-left">
+            <div class="brand-logo" onclick="app.navigate('home')" style="cursor:pointer;">
+              <div class="brand-logo-icon">⚡</div>
+              <span>SoftnixStore</span>
+            </div>
+          </div>
+
+          <div class="header-right">
+            <!-- Notification Bell with Counter -->
+            <button class="header-icon-btn" onclick="app.navigate('notifications')" title="Notifications">
+              <span>🔔</span>
+              <span class="badge-counter notif-badge-count" style="display:none;">0</span>
+            </button>
+
+            <!-- Wishlist Heart with Counter -->
+            <button class="header-icon-btn" onclick="app.navigate('wishlist')" title="Wishlist">
+              <span>❤️</span>
+              <span class="badge-counter wishlist-badge-count" style="display:none;">0</span>
+            </button>
+
+            <!-- Shopping Cart with Counter -->
+            <button class="header-icon-btn" onclick="app.navigate('cart')" title="Shopping Cart">
+              <span>🛒</span>
+              <span class="badge-counter cart-badge-count" style="display:none;">0</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Scrollable Main App Content Views -->
+        <main class="app-content" id="appContent">
+          <!-- 1. Home / Storefront -->
+          <div id="view-home" class="view-container active"></div>
+
+          <!-- 2. Products / Catalog -->
+          <div id="view-catalog" class="view-container"></div>
+
+          <!-- 3. Intelligent Search -->
+          <div id="view-search" class="view-container"></div>
+
+          <!-- 4. Product Details Page (PDP) -->
+          <div id="view-pdp" class="view-container"></div>
+
+          <!-- 5. Wishlist -->
+          <div id="view-wishlist" class="view-container"></div>
+
+          <!-- 6. Cart & Coupons -->
+          <div id="view-cart" class="view-container"></div>
+
+          <!-- 7. Multi-Step Checkout -->
+          <div id="view-checkout" class="view-container"></div>
+
+          <!-- 8. My Orders -->
+          <div id="view-orders" class="view-container"></div>
+
+          <!-- 9. Order Details -->
+          <div id="view-order_details" class="view-container"></div>
+
+          <!-- 9. Visual Order Tracking -->
+          <div id="view-tracking" class="view-container"></div>
+
+          <!-- 10. My Account & Settings -->
+          <div id="view-account" class="view-container"></div>
+
+          <!-- 11. Returns & Refunds Hub -->
+          <div id="view-returns" class="view-container"></div>
+
+          <!-- 12. Reviews & Ratings -->
+          <div id="view-reviews" class="view-container"></div>
+
+          <!-- 13. Notifications Center -->
+          <div id="view-notifications" class="view-container"></div>
+
+          <!-- 14. Customer Support & Live Chat -->
+          <div id="view-support" class="view-container"></div>
+        </main>
+
+        <!-- Modern Sticky Bottom Navigation Bar -->
+        <nav class="bottom-nav">
+          <button class="nav-item active" data-target-view="home" onclick="app.navigate('home')">
+            <span class="nav-icon">🏠</span>
+            <span>Home</span>
           </button>
-          <button class="header-icon-btn" onclick="app.showToast('Your Saved Wishlist Items ❤️')" title="Wishlist">
-            ❤️
-            <span class="badge-counter" id="wishlistHeaderBadge" style="display:none;">0</span>
+          <button class="nav-item" data-target-view="catalog" onclick="app.navigate('catalog')">
+            <span class="nav-icon">🛍️</span>
+            <span>Catalog</span>
           </button>
-        </div>
-      </header>
+          <button class="nav-item" data-target-view="search" onclick="app.navigate('search')">
+            <span class="nav-icon">🔎</span>
+            <span>Search</span>
+          </button>
+          <button class="nav-item" data-target-view="orders" onclick="app.navigate('orders')">
+            <span class="nav-icon">📦</span>
+            <span>Orders</span>
+            <span class="badge-counter" id="ordersNavBadge" style="top:2px; right:14px; display:none;">0</span>
+          </button>
+          <button class="nav-item" data-target-view="account" onclick="app.navigate('account')">
+            <span class="nav-icon">👤</span>
+            <span>Account</span>
+          </button>
+        </nav>
+      </div>
 
-      <!-- Scrollable Main Viewport -->
-      <main class="app-main-content" id="appMainContent">
-        <!-- Module 1: Home / Storefront View -->
-        <section id="view-home" class="view-container active"></section>
-
-        <!-- Module 2: Products / Catalog View -->
-        <section id="view-catalog" class="view-container"></section>
-
-        <!-- Module 3: Intelligent Search View -->
-        <section id="view-search" class="view-container"></section>
-
-        <!-- Module 4: Product Details View (PDP) -->
-        <section id="view-pdp" class="view-container"></section>
-
-        <!-- Module 5: Reviews & Ratings View -->
-        <section id="view-reviews" class="view-container"></section>
-      </main>
-
-      <!-- Sticky Bottom Navigation Bar -->
-      <nav class="app-bottom-nav">
-        <button class="nav-item active" data-view="home" onclick="app.navigate('home')">
-          <span class="nav-item-icon">🏠</span>
-          <span class="nav-item-label">Home</span>
-        </button>
-        <button class="nav-item" data-view="catalog" onclick="app.navigate('catalog')">
-          <span class="nav-item-icon">🛍️</span>
-          <span class="nav-item-label">Catalog</span>
-        </button>
-        <button class="nav-item" data-view="search" onclick="app.navigate('search')">
-          <span class="nav-item-icon">🔎</span>
-          <span class="nav-item-label">Search</span>
-        </button>
-      </nav>
-
-      <!-- Modal Bottom Sheet Overlay -->
-      <div class="modal-overlay" id="appModalOverlay" onclick="if(event.target === this) app.closeModal()"></div>
-
-      <!-- Floating Toast Notifications -->
-      <div class="toast-container" id="toastContainer"></div>
+      <!-- Smartphone Hardware Bottom Home Bar -->
+      <div class="device-home-indicator"></div>
     </div>
   </div>
 
-  <!-- Application Logic Scripts -->
+  <!-- Global Modal / Bottom Sheet Overlay -->
+  <div class="modal-overlay" id="appModalOverlay"></div>
+
+  <!-- Floating Toast Notification Manager -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Application Scripts -->
   <script src="js/data.js"></script>
   <script src="js/state.js"></script>
   <script src="js/app.js"></script>
 </body>
+
 </html>
