@@ -1,8 +1,9 @@
 class AppController {
   constructor() {
-    this.historyStack = ["home"];
+    this.historyStack = [];
     this.currentView = "home";
     this.viewParams = {};
+    this.activePdpProductId = null;
     this.catalogFilters = {
       category: "all",
       brands: [],
@@ -76,7 +77,7 @@ class AppController {
   navigate(viewName, params = {}) {
     this.currentView = viewName;
     this.viewParams = params;
-    this.historyStack.push(viewName);
+    this.historyStack.push({ view: viewName, params });
 
     // Hide all views
     document.querySelectorAll(".view-container").forEach(el => el.classList.remove("active"));
@@ -85,6 +86,32 @@ class AppController {
     document.querySelectorAll(".nav-item").forEach(item => {
       item.classList.toggle("active", item.dataset.targetView === viewName);
     });
+
+    // Toggle Main header (Home, Catalog, Orders, Account) vs Inner compact navigation header
+    const headerHome = document.getElementById("headerHome");
+    const headerInner = document.getElementById("headerInner");
+
+    const isMainView = ["home", "catalog", "orders", "account"].includes(viewName);
+
+    if (isMainView) {
+      if (headerHome) headerHome.style.display = "flex";
+      if (headerInner) headerInner.style.display = "none";
+    } else {
+      if (headerHome) headerHome.style.display = "none";
+      if (headerInner) headerInner.style.display = "flex";
+    }
+
+    // Toggle bottom nav vs PDP action bar
+    const bottomNav = document.getElementById("bottomNav");
+    const pdpBottomBar = document.getElementById("pdpBottomBar");
+
+    if (viewName === "pdp") {
+      if (bottomNav) bottomNav.style.display = "none";
+      if (pdpBottomBar) pdpBottomBar.style.display = "flex";
+    } else {
+      if (bottomNav) bottomNav.style.display = "flex";
+      if (pdpBottomBar) pdpBottomBar.style.display = "none";
+    }
 
     // Render target view
     const viewContainer = document.getElementById(`view-${viewName}`);
@@ -152,7 +179,11 @@ class AppController {
     if (this.historyStack.length > 1) {
       this.historyStack.pop(); // current
       const previous = this.historyStack.pop();
-      this.navigate(previous || "home");
+      if (previous && typeof previous === "object") {
+        this.navigate(previous.view || "home", previous.params || {});
+      } else {
+        this.navigate(previous || "home");
+      }
     } else {
       this.navigate("home");
     }
@@ -708,24 +739,23 @@ class AppController {
       return;
     }
 
+    this.activePdpProductId = product.id;
+
+    // Connect the fixed PDP bottom action bar buttons
+    const addToCartBtn = document.getElementById("pdpAddToCartBtn");
+    if (addToCartBtn) {
+      addToCartBtn.onclick = () => this.handlePDPAddToCart(product.id);
+    }
+    const buyNowBtn = document.getElementById("pdpBuyNowBtn");
+    if (buyNowBtn) {
+      buyNowBtn.onclick = () => this.handlePDPBuyNow(product.id);
+    }
+
     const isWishlisted = appState.isInWishlist(product.id);
     const discountPercent = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100);
     const similar = SEED_DATA.products.filter(p => p.category === product.category && p.id !== product.id);
 
     container.innerHTML = `
-      <!-- Back & Navigation Bar -->
-      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
-        <button onclick="app.goBack()" style="font-size:18px; font-weight:700; color:var(--text-main);">← Back</button>
-        <div style="display:flex; gap:12px;">
-          <button class="wishlist-heart-btn ${isWishlisted ? "active" : ""}" style="position:static; width:34px; height:34px;" onclick="app.toggleWishlist('${product.id}')">
-            ${isWishlisted ? "❤️" : "🤍"}
-          </button>
-          <button class="header-icon-btn" onclick="app.shareProduct('${product.name}')">
-            <span>🔗</span>
-          </button>
-        </div>
-      </div>
-
       <!-- Image Gallery -->
       <div class="pdp-gallery-wrap">
         <img id="pdpMainImg" class="pdp-main-image" src="${product.images[0]}" alt="${product.name}" />
@@ -741,7 +771,19 @@ class AppController {
       <!-- Product Details Body -->
       <div class="pdp-body">
         <span class="pdp-brand-badge">${product.brand}</span>
-        <h1 class="pdp-title">${product.name}</h1>
+
+        <!-- Title Row with Right-Aligned Heart and Share Icons -->
+        <div class="pdp-title-row">
+          <h1 class="pdp-title">${product.name}</h1>
+          <div class="pdp-title-actions">
+            <button class="pdp-title-action-btn ${isWishlisted ? "active" : ""}" id="pdpWishlistBtn" onclick="app.toggleWishlist('${product.id}')" title="Wishlist" aria-label="Add to Wishlist">
+              ${isWishlisted ? "❤️" : "🤍"}
+            </button>
+            <button class="pdp-title-action-btn" onclick="app.shareProduct('${product.name}')" title="Share" aria-label="Share Product">
+              <span>🔗</span>
+            </button>
+          </div>
+        </div>
 
         <div class="pdp-rating-strip" onclick="app.navigate('reviews', { productId: '${product.id}' })" style="cursor:pointer;">
           <span style="color:#f59e0b; font-size:16px;">★</span>
@@ -833,16 +875,6 @@ class AppController {
           </div>
         ` : ""}
       </div>
-
-      <!-- PDP Sticky Bottom Action Bar -->
-      <div class="pdp-bottom-bar">
-        <button class="pdp-action-btn btn-add-cart" onclick="app.handlePDPAddToCart('${product.id}')">
-          🛒 Add to Cart
-        </button>
-        <button class="pdp-action-btn btn-buy-now" onclick="app.handlePDPBuyNow('${product.id}')">
-          ⚡ Buy Now
-        </button>
-      </div>
     `;
   }
 
@@ -883,14 +915,18 @@ class AppController {
   }
 
   handlePDPAddToCart(productId) {
+    const id = productId || this.activePdpProductId || this.viewParams.productId;
+    if (!id) return;
     const color = document.getElementById("selectedColorLabel")?.textContent || "Standard";
     const size = document.querySelector(".size-pill-btn.active")?.textContent.trim() || "Standard";
-    appState.addToCart(productId, { color, size }, 1);
+    appState.addToCart(id, { color, size }, 1);
     this.showToast("Added to Cart! 🛒");
   }
 
   handlePDPBuyNow(productId) {
-    this.handlePDPAddToCart(productId);
+    const id = productId || this.activePdpProductId || this.viewParams.productId;
+    if (!id) return;
+    this.handlePDPAddToCart(id);
     this.validateAndProceedToCheckout();
   }
 
@@ -906,6 +942,12 @@ class AppController {
     this.updateBadges();
     if (this.currentView === "wishlist") {
       this.renderWishlist();
+    } else if (this.currentView === "pdp") {
+      const pdpWish = document.getElementById("pdpWishlistBtn");
+      if (pdpWish) {
+        pdpWish.innerHTML = added ? "❤️" : "🤍";
+        pdpWish.classList.toggle("active", added);
+      }
     }
   }
 
@@ -1534,8 +1576,7 @@ class AppController {
 
     container.innerHTML = `
       <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
-        <button onclick="app.navigate('orders')" style="font-weight:700; font-size:14px;">← Orders</button>
-        <span style="font-weight:800;">Order #${order.orderNumber}</span>
+        <span style="font-weight:800; font-size:15px;">Order #${order.orderNumber}</span>
         <button class="tool-btn" onclick="app.openInvoiceModal('${order.id}')">Invoice 📄</button>
       </div>
 
@@ -1615,8 +1656,9 @@ class AppController {
     }
 
     container.innerHTML = `
-      <div style="display:flex; align-items:center; padding:12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
-        <button onclick="app.navigate('order_details', { orderId: '${order.id}' })" style="font-weight:700;">← Details</button>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color);">
+        <span style="font-weight:800; font-size:15px;">Live Delivery Tracking</span>
+        <span style="font-size:11px; color:var(--primary); font-weight:700;">Order #${order.orderNumber}</span>
       </div>
 
       <!-- Out for Delivery Live Radar Simulation -->
@@ -1928,9 +1970,8 @@ class AppController {
 
     container.innerHTML = `
       <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
-        <button onclick="app.navigate('account')" style="font-weight:700;">← Account</button>
         <h2 style="font-size:15px; font-weight:800;">Returns & Refunds Hub</h2>
-        <span></span>
+        <span style="font-size:11px; color:var(--text-muted);">15-Day Policy</span>
       </div>
 
       <div style="padding:16px;">
@@ -2034,7 +2075,6 @@ class AppController {
 
     container.innerHTML = `
       <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
-        <button onclick="app.navigate('pdp', { productId: '${product.id}' })" style="font-weight:700;">← Product</button>
         <h2 style="font-size:15px; font-weight:800;">Customer Reviews</h2>
         <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openWriteReviewModal('${product.id}')">+ Write Review</button>
       </div>
@@ -2209,7 +2249,6 @@ class AppController {
 
     container.innerHTML = `
       <div style="padding:14px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); display:flex; align-items:center; justify-content:space-between;">
-        <button onclick="app.navigate('account')" style="font-weight:700;">← Account</button>
         <h2 style="font-size:16px; font-weight:800;">Help & Live Support</h2>
         <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openRaiseTicketModal()">+ Raise Claim</button>
       </div>

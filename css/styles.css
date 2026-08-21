@@ -291,6 +291,16 @@ img {
   pointer-events: none;
 }
 
+.status-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-bar-item {
+  font-size: 11px;
+}
+
 /* ==========================================================================
    Mobile App Layout Structure
    ========================================================================== */
@@ -313,10 +323,16 @@ img {
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 16px;
   z-index: 500;
   backdrop-filter: blur(10px);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .header-left {
@@ -333,6 +349,7 @@ img {
   font-weight: 800;
   letter-spacing: -0.5px;
   color: var(--text-main);
+  cursor: pointer;
 }
 
 .brand-logo-icon {
@@ -1264,10 +1281,67 @@ img {
   align-self: flex-start;
 }
 
+/* Product Title Row with Right-Aligned Heart & Share Buttons */
+.pdp-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .pdp-title {
   font-size: 18px;
   font-weight: 800;
   line-height: 1.3;
+  flex: 1;
+  margin: 0;
+  color: var(--text-main);
+}
+
+.pdp-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pdp-title-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.pdp-title-action-btn:hover {
+  transform: scale(1.08);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.pdp-title-action-btn:active {
+  transform: scale(0.92);
+}
+
+.pdp-title-action-btn.active {
+  color: #ef4444;
+  background: #fff;
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+[data-theme="dark"] .pdp-title-action-btn.active {
+  background: #1e293b;
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .pdp-rating-strip {
@@ -1419,18 +1493,22 @@ img {
   background: var(--bg-surface-subtle);
 }
 
-/* PDP Sticky Bottom Bar */
+/* PDP Fixed Bottom Bar */
 .pdp-bottom-bar {
-  position: sticky;
-  bottom: var(--bottom-nav-height);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
   background: var(--bg-surface);
   border-top: 1px solid var(--border-color);
-  padding: 10px 16px;
+  padding: 0 16px 12px 16px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  z-index: 450;
-  box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+  gap: 12px;
+  z-index: 500;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .pdp-action-btn {
@@ -1443,6 +1521,12 @@ img {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pdp-action-btn:active {
+  transform: scale(0.98);
 }
 
 .btn-add-cart {
@@ -1451,10 +1535,19 @@ img {
   border: 1px solid var(--primary);
 }
 
+.btn-add-cart:hover {
+  background: rgba(37, 99, 235, 0.18);
+}
+
 .btn-buy-now {
   background: var(--primary-gradient);
   color: #fff;
+  border: none;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-buy-now:hover {
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.45);
 }
 
 /* ==========================================================================
