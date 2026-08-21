@@ -74,10 +74,36 @@ class AppController {
   }
 
   // --- Router & Navigation ---
+  updateTopHeader(viewName) {
+    const headerLeft = document.querySelector(".app-header .header-left");
+    if (!headerLeft) return;
+
+    if (viewName === "home") {
+      headerLeft.innerHTML = `
+        <div class="brand-logo" onclick="app.navigate('home')" style="cursor:pointer;">
+          <div class="brand-logo-icon">⚡</div>
+          <span>SoftnixStore</span>
+        </div>
+      `;
+    } else {
+      headerLeft.innerHTML = `
+        <button class="header-back-btn" onclick="app.goBack()" title="Go Back" aria-label="Go Back">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </button>
+      `;
+    }
+  }
+
   navigate(viewName, params = {}) {
     this.currentView = viewName;
     this.viewParams = params;
     this.historyStack.push({ view: viewName, params });
+
+    // Update top header navigation bar
+    this.updateTopHeader(viewName);
 
     // Hide all views
     document.querySelectorAll(".view-container").forEach(el => el.classList.remove("active"));
@@ -844,9 +870,21 @@ class AppController {
           </div>
         </div>
 
-        <!-- Description -->
+        <!-- Description with Heart Wishlist and Link Share Buttons -->
         <div>
-          <h3 style="font-size:14px; font-weight:800; margin-bottom:6px;">Product Description</h3>
+          <div class="pdp-desc-header">
+            <h3 style="font-size:14px; font-weight:800;">Product Description</h3>
+            <div class="pdp-desc-actions">
+              <button id="pdpWishlistBtn" class="pdp-desc-btn ${isWishlisted ? "active" : ""}" onclick="app.toggleWishlist('${product.id}')" title="Wishlist">
+                <span>${isWishlisted ? "❤️" : "🤍"}</span>
+                <span>${isWishlisted ? "Saved" : "Wishlist"}</span>
+              </button>
+              <button class="pdp-desc-btn" onclick="app.shareProduct('${product.name}')" title="Share product link">
+                <span>🔗</span>
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
           <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${product.description}</p>
         </div>
 
@@ -940,6 +978,13 @@ class AppController {
     const added = appState.toggleWishlist(productId);
     this.showToast(added ? "Added to Wishlist ❤️" : "Removed from Wishlist");
     this.updateBadges();
+
+    const pdpBtn = document.getElementById("pdpWishlistBtn");
+    if (pdpBtn) {
+      pdpBtn.classList.toggle("active", added);
+      pdpBtn.innerHTML = `<span>${added ? "❤️" : "🤍"}</span><span>${added ? "Saved" : "Wishlist"}</span>`;
+    }
+
     if (this.currentView === "wishlist") {
       this.renderWishlist();
     } else if (this.currentView === "pdp") {
