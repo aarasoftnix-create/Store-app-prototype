@@ -178,7 +178,7 @@ img {
   gap: 8px;
 }
 
-.tool-btn {
+.emulator-toolbar .tool-btn {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -189,13 +189,45 @@ img {
   color: #f1f5f9;
   font-size: 12px;
   font-weight: 500;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.tool-btn:hover, .tool-btn.active {
+.emulator-toolbar .tool-btn:hover,
+.emulator-toolbar .tool-btn.active {
   background: #3b82f6;
   border-color: #60a5fa;
   color: #fff;
+}
+
+.app-shell .tool-btn,
+.modal-overlay .tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.app-shell .tool-btn:hover,
+.modal-overlay .tool-btn:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.app-shell .tool-btn.active,
+.modal-overlay .tool-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
 }
 
 /* ==========================================================================
@@ -323,6 +355,28 @@ img {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.header-back-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-back-btn:hover {
+  background: transparent;
+  color: var(--primary);
+}
+
+.header-back-btn:active {
+  transform: scale(0.9);
 }
 
 .brand-logo {
@@ -1248,6 +1302,54 @@ img {
 .pdp-body {
   padding: 16px;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pdp-desc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pdp-desc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdp-desc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pdp-desc-btn:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.pdp-desc-btn.active {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pdp-desc-btn:active {
+  transform: scale(0.94);
+}
   flex-direction: column;
   gap: 16px;
 }
