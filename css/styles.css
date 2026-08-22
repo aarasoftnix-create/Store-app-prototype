@@ -131,12 +131,14 @@ img {
    ========================================================================== */
 .emulator-wrapper {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   padding: 16px;
   background: radial-gradient(circle at top center, #1e293b 0%, #0f172a 100%);
+  transition: all 0.3s ease;
 }
 
 .emulator-toolbar {
@@ -144,29 +146,34 @@ img {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 900px;
+  max-width: 1240px;
   margin-bottom: 16px;
-  padding: 10px 16px;
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 18px;
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-lg);
   color: #fff;
   z-index: 100;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .toolbar-brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
   letter-spacing: -0.3px;
 }
 
 .toolbar-brand .badge {
   font-size: 10px;
-  padding: 2px 6px;
+  font-weight: 700;
+  padding: 2px 8px;
   background: #3b82f6;
   border-radius: var(--radius-full);
   text-transform: uppercase;
@@ -176,28 +183,36 @@ img {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .emulator-toolbar .tool-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
   color: #f1f5f9;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-.emulator-toolbar .tool-btn:hover,
+.emulator-toolbar .tool-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #fff;
+}
+
 .emulator-toolbar .tool-btn.active {
   background: #3b82f6;
   border-color: #60a5fa;
   color: #fff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
 .app-shell .tool-btn,
@@ -231,7 +246,7 @@ img {
 }
 
 /* ==========================================================================
-   Smartphone Device Mockup Container
+   Device Containers & Responsive Modes
    ========================================================================== */
 .device-container {
   position: relative;
@@ -239,7 +254,7 @@ img {
   max-width: var(--max-app-width);
   height: 860px;
   background: var(--bg-app);
-  border-radius: 44px;
+  border-radius: 46px;
   box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 0 12px #1f2937, 0 0 0 14px #374151;
   overflow: hidden;
   display: flex;
@@ -247,19 +262,64 @@ img {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Android Device Frame Variant */
-.device-container.mode-android {
-  border-radius: 28px;
-  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 0 10px #1e293b;
+/* iPhone Mode (Desktop) */
+.device-container.mode-iphone {
+  max-width: 414px;
+  height: 860px;
+  border-radius: 46px;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 0 12px #1f2937, 0 0 0 14px #374151;
 }
 
-/* Responsive Full Screen Variant */
+.device-container.mode-iphone .device-notch {
+  display: flex;
+}
+
+.device-container.mode-iphone .device-status-bar {
+  display: flex;
+}
+
+.device-container.mode-iphone .device-home-indicator {
+  display: block;
+}
+
+/* Android Mode (Desktop) */
+.device-container.mode-android {
+  max-width: 412px;
+  height: 850px;
+  border-radius: 32px;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.6), 0 0 0 10px #1e293b, 0 0 0 12px #334155;
+}
+
+.device-container.mode-android .device-notch {
+  display: none !important;
+}
+
+.device-container.mode-android .device-status-bar {
+  display: flex;
+}
+
+.device-container.mode-android .device-home-indicator {
+  display: block;
+  width: 80px;
+  height: 3px;
+  bottom: 8px;
+}
+
+/* Laptop / Responsive Full View Mode */
 .device-container.mode-responsive {
-  max-width: 1000px;
-  height: 90vh;
-  border-radius: var(--radius-lg);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  max-width: 1240px;
+  width: 96%;
+  height: calc(100vh - 90px);
+  min-height: 720px;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
   border: 1px solid var(--border-color);
+}
+
+.device-container.mode-responsive .device-notch,
+.device-container.mode-responsive .device-status-bar,
+.device-container.mode-responsive .device-home-indicator {
+  display: none !important;
 }
 
 /* Device Hardware Elements */
@@ -1366,9 +1426,6 @@ img {
 
 .pdp-desc-btn:active {
   transform: scale(0.94);
-}
-  flex-direction: column;
-  gap: 16px;
 }
 
 .pdp-brand-badge {
@@ -2532,4 +2589,268 @@ input:checked + .slider-toggle:before {
 @keyframes toastIn {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* ==========================================================================
+   Desktop / Laptop Responsive Enhancements (Mode Responsive)
+   ========================================================================== */
+.pdp-desktop-actions {
+  display: none;
+}
+
+.checkout-summary-column {
+  display: none;
+}
+
+.account-menu-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.device-container.mode-responsive .products-grid-2col {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 0 24px 24px 24px;
+}
+
+.device-container.mode-responsive .section-title-wrap {
+  padding: 0 24px;
+}
+
+.device-container.mode-responsive .home-search-trigger {
+  padding: 16px 24px;
+}
+
+.device-container.mode-responsive .banner-slider {
+  margin: 4px 24px 20px 24px;
+}
+
+.device-container.mode-responsive .banner-slide {
+  height: 220px;
+  padding: 28px;
+}
+
+.device-container.mode-responsive .banner-title {
+  font-size: 24px;
+}
+
+.device-container.mode-responsive .banner-subtitle {
+  font-size: 13px;
+}
+
+.device-container.mode-responsive .category-scroll-strip {
+  padding: 0 24px 12px 24px;
+  gap: 16px;
+}
+
+.device-container.mode-responsive .category-icon-circle {
+  width: 64px;
+  height: 64px;
+  font-size: 26px;
+}
+
+.device-container.mode-responsive .deals-banner-card {
+  margin: 20px 24px;
+  padding: 20px;
+}
+
+/* 2-Column Responsive Layout for PDP on Laptop */
+.device-container.mode-responsive .pdp-layout-container {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 28px;
+  padding: 24px;
+  align-items: start;
+}
+
+.device-container.mode-responsive .pdp-gallery-wrap {
+  position: sticky;
+  top: 16px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.device-container.mode-responsive .pdp-main-image {
+  height: 360px;
+}
+
+.device-container.mode-responsive .pdp-body {
+  padding: 0;
+}
+
+.device-container.mode-responsive .pdp-desktop-actions {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.device-container.mode-responsive .pdp-desktop-actions .pdp-action-btn {
+  flex: 1;
+  height: 46px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.device-container.mode-responsive .pdp-bottom-bar {
+  display: none !important;
+}
+
+/* 2-Column Responsive Layout for Cart & Checkout on Laptop */
+.device-container.mode-responsive .cart-layout-container,
+.device-container.mode-responsive .checkout-layout-container {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+  padding: 20px 24px;
+  align-items: start;
+}
+
+.device-container.mode-responsive .cart-items-list {
+  padding: 0;
+}
+
+.device-container.mode-responsive .checkout-steps-column {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.device-container.mode-responsive .checkout-summary-column {
+  display: block;
+}
+
+.device-container.mode-responsive .checkout-sticky-summary {
+  position: sticky;
+  top: 16px;
+}
+
+.device-container.mode-responsive .account-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 0 24px;
+}
+
+.device-container.mode-responsive .account-profile-card {
+  margin: 16px 24px;
+}
+
+/* ==========================================================================
+   Mobile-First Native Adoption (Smartphones & Touch Devices)
+   ========================================================================== */
+@media (max-width: 768px) {
+  html, body {
+    height: 100%;
+    min-height: 100dvh;
+    background-color: var(--bg-app) !important;
+    overflow-x: hidden;
+  }
+
+  .emulator-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 100dvh !important;
+    height: 100dvh !important;
+    background: var(--bg-app) !important;
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .emulator-toolbar {
+    display: none !important;
+  }
+
+  .device-container,
+  .device-container.mode-iphone,
+  .device-container.mode-android,
+  .device-container.mode-responsive {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: 100% !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    background: var(--bg-app) !important;
+  }
+
+  .device-notch,
+  .device-status-bar,
+  .device-home-indicator {
+    display: none !important;
+  }
+
+  .app-shell {
+    height: 100dvh !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-header {
+    padding-top: max(6px, env(safe-area-inset-top, 0px));
+    height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+  }
+
+  .bottom-nav {
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pdp-bottom-bar {
+    padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
+    height: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .pdp-desktop-actions {
+    display: none !important;
+  }
+
+  .checkout-summary-column {
+    display: none !important;
+  }
+
+  .pdp-layout-container,
+  .cart-layout-container,
+  .checkout-layout-container {
+    display: block;
+    width: 100%;
+  }
+
+  .account-menu-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .app-content {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 20px) !important;
+  }
+
+  .bottom-sheet {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-top-left-radius: 20px !important;
+    border-top-right-radius: 20px !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+  }
+
+  .toast-container {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 12px) !important;
+    width: calc(100% - 32px) !important;
+  }
 }

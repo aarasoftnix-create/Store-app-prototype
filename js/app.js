@@ -44,12 +44,19 @@ class AppController {
   setupThemeAndDevice() {
     const theme = appState.state.settings.theme || "light";
     document.documentElement.setAttribute("data-theme", theme);
+    const metaTheme = document.getElementById("metaThemeColor");
+    if (metaTheme) {
+      metaTheme.content = theme === "dark" ? "#090d16" : "#2563eb";
+    }
 
-    const deviceMode = appState.state.settings.deviceMode || "iphone";
+    const deviceMode = appState.state.settings.deviceMode || "responsive";
     const container = document.getElementById("deviceContainer");
     if (container) {
       container.className = `device-container mode-${deviceMode}`;
     }
+    document.querySelectorAll(".device-mode-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.mode === deviceMode);
+    });
   }
 
   setDeviceMode(mode) {
@@ -62,7 +69,8 @@ class AppController {
     document.querySelectorAll(".device-mode-btn").forEach(btn => {
       btn.classList.toggle("active", btn.dataset.mode === mode);
     });
-    this.showToast(`Switched to ${mode.toUpperCase()} View`);
+    const modeLabel = mode === "responsive" ? "LAPTOP / FULL" : mode.toUpperCase();
+    this.showToast(`Switched to ${modeLabel} View`);
   }
 
   toggleTheme() {
@@ -71,7 +79,14 @@ class AppController {
     document.documentElement.setAttribute("data-theme", next);
     appState.state.settings.theme = next;
     appState.saveState();
+    const metaTheme = document.getElementById("metaThemeColor");
+    if (metaTheme) {
+      metaTheme.content = next === "dark" ? "#090d16" : "#2563eb";
+    }
     this.showToast(`Switched to ${next.toUpperCase()} Mode`);
+    if (this.currentView === "account") {
+      this.renderAccount();
+    }
   }
 
   // --- Router & Navigation ---
@@ -783,127 +798,149 @@ class AppController {
     const similar = SEED_DATA.products.filter(p => p.category === product.category && p.id !== product.id);
 
     container.innerHTML = `
-      <!-- Image Gallery -->
-      <div class="pdp-gallery-wrap">
-        <img id="pdpMainImg" class="pdp-main-image" src="${product.images[0]}" alt="${product.name}" />
-        <div class="pdp-gallery-thumbs">
-          ${product.images.map((img, i) => `
-            <div class="pdp-thumb ${i === 0 ? "active" : ""}" onclick="app.switchPDPImage('${img}', this)">
-              <img src="${img}" alt="${product.name}" />
-            </div>
-          `).join("")}
-        </div>
-      </div>
-
-      <!-- Product Details Body -->
-      <div class="pdp-body">
-        <span class="pdp-brand-badge">${product.brand}</span>
-
-        <!-- Title Row with Right-Aligned Heart and Share Icons -->
-        <div class="pdp-title-row">
-          <h1 class="pdp-title">${product.name}</h1>
-          <div class="pdp-title-actions">
-            <button class="pdp-title-action-btn ${isWishlisted ? "active" : ""}" id="pdpWishlistBtn" onclick="app.toggleWishlist('${product.id}')" title="Wishlist" aria-label="Add to Wishlist">
-              ${isWishlisted ? "❤️" : "🤍"}
-            </button>
-            <button class="pdp-title-action-btn" onclick="app.shareProduct('${product.name}')" title="Share" aria-label="Share Product">
-              <span>🔗</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="pdp-rating-strip" onclick="app.navigate('reviews', { productId: '${product.id}' })" style="cursor:pointer;">
-          <span style="color:#f59e0b; font-size:16px;">★</span>
-          <span style="font-weight:800; font-size:14px;">${product.rating}</span>
-          <span style="color:var(--primary); font-size:12px; text-decoration:underline;">(${product.reviewCount} customer reviews)</span>
-        </div>
-
-        <div class="pdp-price-box">
-          <span class="price">$${product.price}</span>
-          <span class="original-price" style="font-size:16px;">$${product.originalPrice}</span>
-          <span class="discount-tag" style="font-size:13px;">Save ${discountPercent}%</span>
-        </div>
-
-        <!-- Stock Urgency -->
-        <div>
-          <span class="stock-status-pill ${product.stockCount <= 10 ? "low" : ""}">
-            <span>●</span>
-            <span>${product.stockCount <= 10 ? `Only ${product.stockCount} left in stock - order soon!` : "In Stock - Fast Dispatch"}</span>
-          </span>
-          <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">SKU: ${product.sku} • 100% Authentic Guarantee</div>
-        </div>
-
-        <!-- Variant Options: Colors -->
-        ${product.variants?.colors ? `
-          <div class="pdp-variant-section">
-            <span class="variant-label">Color: <strong id="selectedColorLabel" style="color:var(--text-main);">${product.variants.colors[0].name}</strong></span>
-            <div class="variant-color-list">
-              ${product.variants.colors.map((c, i) => `
-                <button class="color-swatch-btn ${i === 0 ? "active" : ""}" style="background-color: ${c.hex};" onclick="app.selectColorVariant('${c.name}', this)"></button>
+      <div class="pdp-layout-container">
+        <!-- Image Gallery Column -->
+        <div class="pdp-gallery-column">
+          <div class="pdp-gallery-wrap">
+            <img id="pdpMainImg" class="pdp-main-image" src="${product.images[0]}" alt="${product.name}" />
+            <div class="pdp-gallery-thumbs">
+              ${product.images.map((img, i) => `
+                <div class="pdp-thumb ${i === 0 ? "active" : ""}" onclick="app.switchPDPImage('${img}', this)">
+                  <img src="${img}" alt="${product.name}" />
+                </div>
               `).join("")}
             </div>
           </div>
-        ` : ""}
+        </div>
 
-        <!-- Variant Options: Sizes / Storage -->
-        ${product.variants?.sizes ? `
-          <div class="pdp-variant-section">
-            <span class="variant-label">Configuration / Size:</span>
-            <div class="variant-size-list">
-              ${product.variants.sizes.map((s, i) => `
-                <button class="size-pill-btn ${i === 0 ? "active" : ""}" onclick="app.selectSizeVariant('${s.name}', ${s.priceDelta}, this)">
-                  ${s.name} ${s.priceDelta > 0 ? `(+$${s.priceDelta})` : ""}
+        <!-- Product Details Column -->
+        <div class="pdp-details-column">
+          <div class="pdp-body">
+            <span class="pdp-brand-badge">${product.brand}</span>
+
+            <!-- Title Row with Right-Aligned Heart and Share Icons -->
+            <div class="pdp-title-row">
+              <h1 class="pdp-title">${product.name}</h1>
+              <div class="pdp-title-actions">
+                <button class="pdp-title-action-btn ${isWishlisted ? "active" : ""}" id="pdpWishlistBtn" onclick="app.toggleWishlist('${product.id}')" title="Wishlist" aria-label="Add to Wishlist">
+                  ${isWishlisted ? "❤️" : "🤍"}
                 </button>
-              `).join("")}
+                <button class="pdp-title-action-btn" onclick="app.shareProduct('${product.name}')" title="Share" aria-label="Share Product">
+                  <span>🔗</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="pdp-rating-strip" onclick="app.navigate('reviews', { productId: '${product.id}' })" style="cursor:pointer;">
+              <span style="color:#f59e0b; font-size:16px;">★</span>
+              <span style="font-weight:800; font-size:14px;">${product.rating}</span>
+              <span style="color:var(--primary); font-size:12px; text-decoration:underline;">(${product.reviewCount} customer reviews)</span>
+            </div>
+
+            <div class="pdp-price-box">
+              <span class="price">$${product.price}</span>
+              <span class="original-price" style="font-size:16px;">$${product.originalPrice}</span>
+              <span class="discount-tag" style="font-size:13px;">Save ${discountPercent}%</span>
+            </div>
+
+            <!-- Stock Urgency -->
+            <div>
+              <span class="stock-status-pill ${product.stockCount <= 10 ? "low" : ""}">
+                <span>●</span>
+                <span>${product.stockCount <= 10 ? `Only ${product.stockCount} left in stock - order soon!` : "In Stock - Fast Dispatch"}</span>
+              </span>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">SKU: ${product.sku} • 100% Authentic Guarantee</div>
+            </div>
+
+            <!-- Variant Options: Colors -->
+            ${product.variants?.colors ? `
+              <div class="pdp-variant-section">
+                <span class="variant-label">Color: <strong id="selectedColorLabel" style="color:var(--text-main);">${product.variants.colors[0].name}</strong></span>
+                <div class="variant-color-list">
+                  ${product.variants.colors.map((c, i) => `
+                    <button class="color-swatch-btn ${i === 0 ? "active" : ""}" style="background-color: ${c.hex};" onclick="app.selectColorVariant('${c.name}', this)"></button>
+                  `).join("")}
+                </div>
+              </div>
+            ` : ""}
+
+            <!-- Variant Options: Sizes / Storage -->
+            ${product.variants?.sizes ? `
+              <div class="pdp-variant-section">
+                <span class="variant-label">Configuration / Size:</span>
+                <div class="variant-size-list">
+                  ${product.variants.sizes.map((s, i) => `
+                    <button class="size-pill-btn ${i === 0 ? "active" : ""}" onclick="app.selectSizeVariant('${s.name}', ${s.priceDelta}, this)">
+                      ${s.name} ${s.priceDelta > 0 ? `(+$${s.priceDelta})` : ""}
+                    </button>
+                  `).join("")}
+                </div>
+              </div>
+            ` : ""}
+
+            <!-- Desktop In-Page Buy Buttons (Visible in Responsive Laptop Mode) -->
+            <div class="pdp-desktop-actions">
+              <button class="pdp-action-btn btn-add-cart" onclick="app.handlePDPAddToCart('${product.id}')">
+                🛒 Add to Cart
+              </button>
+              <button class="pdp-action-btn btn-buy-now" onclick="app.handlePDPBuyNow('${product.id}')">
+                ⚡ Buy Now
+              </button>
+            </div>
+
+            <!-- Delivery Pincode Checker -->
+            <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:14px;">
+              <label style="font-size:12px; font-weight:700;">📍 Delivery Estimate</label>
+              <div class="pincode-estimator-box">
+                <input type="text" id="pincodeInput" class="pincode-input" placeholder="Enter Zip Code (e.g. 97477)" value="97477" />
+                <button class="pincode-btn" onclick="app.checkPincode()">Check</button>
+              </div>
+              <div id="pincodeResult" style="font-size:12px; color:var(--success); font-weight:600; margin-top:8px;">
+                ✓ Deliver to 97477 by ${product.deliveryEstimate}
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <div class="pdp-desc-header">
+                <h3 style="font-size:14px; font-weight:800;">Product Description</h3>
+                <div class="pdp-desc-actions">
+                  <button class="pdp-desc-btn" onclick="app.shareProduct('${product.name}')" title="Share product link">
+                    <span>🔗</span>
+                    <span>Share</span>
+                  </button>
+                </div>
+              </div>
+              <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${product.description}</p>
+            </div>
+
+            <!-- Customer-Safe Specs -->
+            <div>
+              <h3 style="font-size:14px; font-weight:800; margin-bottom:8px;">Technical Specifications</h3>
+              <table class="specs-table">
+                <tbody>
+                  ${Object.entries(product.specifications || {}).map(([key, val]) => `
+                    <tr>
+                      <td>${key}</td>
+                      <td>${val}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
             </div>
           </div>
-        ` : ""}
-
-        <!-- Delivery Pincode Checker -->
-        <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:14px;">
-          <label style="font-size:12px; font-weight:700;">📍 Delivery Estimate</label>
-          <div class="pincode-estimator-box">
-            <input type="text" id="pincodeInput" class="pincode-input" placeholder="Enter Zip Code (e.g. 97477)" value="97477" />
-            <button class="pincode-btn" onclick="app.checkPincode()">Check</button>
-          </div>
-          <div id="pincodeResult" style="font-size:12px; color:var(--success); font-weight:600; margin-top:8px;">
-            ✓ Deliver to 97477 by ${product.deliveryEstimate}
-          </div>
         </div>
-
-        <!-- Description -->
-        <div>
-          <div class="pdp-desc-header">
-            <h3 style="font-size:14px; font-weight:800;">Product Description</h3>
-          </div>
-          <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${product.description}</p>
-        </div>
-
-        <!-- Customer-Safe Specs (Hiding internal ERP fields) -->
-        <div>
-          <h3 style="font-size:14px; font-weight:800; margin-bottom:8px;">Technical Specifications</h3>
-          <table class="specs-table">
-            <tbody>
-              ${Object.entries(product.specifications || {}).map(([key, val]) => `
-                <tr>
-                  <td>${key}</td>
-                  <td>${val}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Similar Products Carousel -->
-        ${similar.length > 0 ? `
-          <div style="margin-top: 10px;">
-            <h3 style="font-size:14px; font-weight:800; margin-bottom:10px;">Similar Products</h3>
-            <div class="products-horizontal-scroll">
-              ${similar.map(s => this.renderProductCardHtml(s, true)).join("")}
-            </div>
-          </div>
-        ` : ""}
       </div>
+
+      <!-- Similar Products Carousel -->
+      ${similar.length > 0 ? `
+        <div style="margin: 20px 16px 10px 16px;">
+          <h3 style="font-size:14px; font-weight:800; margin-bottom:10px;">Similar Products</h3>
+          <div class="products-horizontal-scroll">
+            ${similar.map(s => this.renderProductCardHtml(s, true)).join("")}
+          </div>
+        </div>
+      ` : ""}
     `;
   }
 
@@ -1081,88 +1118,96 @@ class AppController {
         </div>
       ` : ""}
 
-      <!-- Cart Items List -->
+      <!-- Cart Layout (1 col mobile, 2 col laptop) -->
       ${cartItems.length > 0 ? `
-        <div class="cart-items-list">
-          ${cartItems.map(item => `
-            <div class="cart-item-card">
-              <img src="${item.image}" class="cart-item-img" alt="${item.name}" onclick="app.openProduct('${item.productId}')" />
-              <div class="cart-item-info">
-                <h4 class="cart-item-title" onclick="app.openProduct('${item.productId}')">${item.name}</h4>
-                <span class="cart-item-variant">${item.color} • ${item.size}</span>
-                <div style="font-size:14px; font-weight:800; color:var(--text-main); margin-bottom:8px;">
-                  $${(item.price * item.quantity).toFixed(2)}
-                </div>
+        <div class="cart-layout-container">
+          <!-- Cart Items Column -->
+          <div class="cart-items-column">
+            <div class="cart-items-list">
+              ${cartItems.map(item => `
+                <div class="cart-item-card">
+                  <img src="${item.image}" class="cart-item-img" alt="${item.name}" onclick="app.openProduct('${item.productId}')" />
+                  <div class="cart-item-info">
+                    <h4 class="cart-item-title" onclick="app.openProduct('${item.productId}')">${item.name}</h4>
+                    <span class="cart-item-variant">${item.color} • ${item.size}</span>
+                    <div style="font-size:14px; font-weight:800; color:var(--text-main); margin-bottom:8px;">
+                      $${(item.price * item.quantity).toFixed(2)}
+                    </div>
 
-                <div class="cart-item-footer">
-                  <div class="qty-stepper">
-                    <button class="qty-btn" onclick="app.updateQty('${item.id}', -1)">-</button>
-                    <span class="qty-val">${item.quantity}</span>
-                    <button class="qty-btn" onclick="app.updateQty('${item.id}', 1)">+</button>
-                  </div>
+                    <div class="cart-item-footer">
+                      <div class="qty-stepper">
+                        <button class="qty-btn" onclick="app.updateQty('${item.id}', -1)">-</button>
+                        <span class="qty-val">${item.quantity}</span>
+                        <button class="qty-btn" onclick="app.updateQty('${item.id}', 1)">+</button>
+                      </div>
 
-                  <div style="display:flex; gap:8px;">
-                    <button onclick="app.confirmRemoveCartItem('${item.id}')" style="font-size:11px; color:var(--danger); font-weight:700;">Remove</button>
+                      <div style="display:flex; gap:8px;">
+                        <button onclick="app.confirmRemoveCartItem('${item.id}')" style="font-size:11px; color:var(--danger); font-weight:700;">Remove</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
+              `).join("")}
+            </div>
+          </div>
+
+          <!-- Cart Summary Column -->
+          <div class="cart-summary-column">
+            <!-- Coupon / Promo Box -->
+            <div class="coupon-section-box">
+              <label style="font-size:12px; font-weight:700; color:var(--text-main);">Apply Promo / Coupon Code</label>
+              <div class="coupon-input-group">
+                <input type="text" id="couponCodeInput" class="coupon-input" placeholder="e.g. WELCOME10" value="${appliedCoupon ? appliedCoupon.code : ""}" ${appliedCoupon ? "disabled" : ""} />
+                ${appliedCoupon ? `
+                  <button class="coupon-apply-btn" style="background:var(--danger);" onclick="app.removeCoupon()">Remove</button>
+                ` : `
+                  <button class="coupon-apply-btn" onclick="app.applyCouponCode()">Apply</button>
+                `}
               </div>
+              ${appliedCoupon ? `
+                <div style="font-size:11px; color:var(--success); font-weight:700; margin-top:6px;">
+                  ✓ ${appliedCoupon.description}
+                </div>
+              ` : `
+                <div style="margin-top:6px;">
+                  <span style="font-size:10px; color:var(--text-muted);">Quick Codes:</span>
+                  <span class="coupon-pill-demo" onclick="app.fillCoupon('WELCOME10')">WELCOME10 (10% Off)</span>
+                  <span class="coupon-pill-demo" onclick="app.fillCoupon('SAVE20')">SAVE20 ($20 Off)</span>
+                </div>
+              `}
             </div>
-          `).join("")}
-        </div>
 
-        <!-- Coupon / Promo Box -->
-        <div class="coupon-section-box">
-          <label style="font-size:12px; font-weight:700; color:var(--text-main);">Apply Promo / Coupon Code</label>
-          <div class="coupon-input-group">
-            <input type="text" id="couponCodeInput" class="coupon-input" placeholder="e.g. WELCOME10" value="${appliedCoupon ? appliedCoupon.code : ""}" ${appliedCoupon ? "disabled" : ""} />
-            ${appliedCoupon ? `
-              <button class="coupon-apply-btn" style="background:var(--danger);" onclick="app.removeCoupon()">Remove</button>
-            ` : `
-              <button class="coupon-apply-btn" onclick="app.applyCouponCode()">Apply</button>
-            `}
-          </div>
-          ${appliedCoupon ? `
-            <div style="font-size:11px; color:var(--success); font-weight:700; margin-top:6px;">
-              ✓ ${appliedCoupon.description}
-            </div>
-          ` : `
-            <div style="margin-top:6px;">
-              <span style="font-size:10px; color:var(--text-muted);">Quick Codes:</span>
-              <span class="coupon-pill-demo" onclick="app.fillCoupon('WELCOME10')">WELCOME10 (10% Off)</span>
-              <span class="coupon-pill-demo" onclick="app.fillCoupon('SAVE20')">SAVE20 ($20 Off)</span>
-            </div>
-          `}
-        </div>
+            <!-- Dynamic Order Summary Breakdown -->
+            <div class="order-summary-card">
+              <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Price Details</h3>
+              <div class="summary-row">
+                <span>Items Subtotal</span>
+                <span>$${totals.subtotal.toFixed(2)}</span>
+              </div>
+              ${totals.discount > 0 ? `
+                <div class="summary-row" style="color:var(--success); font-weight:700;">
+                  <span>Coupon Discount</span>
+                  <span>-$${totals.discount.toFixed(2)}</span>
+                </div>
+              ` : ""}
+              <div class="summary-row">
+                <span>Delivery Fee</span>
+                <span>${totals.deliveryFee === 0 ? "<strong style='color:var(--success);'>FREE</strong>" : `$${totals.deliveryFee.toFixed(2)}`}</span>
+              </div>
+              <div class="summary-row">
+                <span>Estimated Tax (8%)</span>
+                <span>$${totals.tax.toFixed(2)}</span>
+              </div>
+              <div class="summary-row total">
+                <span>Grand Total</span>
+                <span>$${totals.total.toFixed(2)}</span>
+              </div>
 
-        <!-- Dynamic Order Summary Breakdown -->
-        <div class="order-summary-card">
-          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Price Details</h3>
-          <div class="summary-row">
-            <span>Items Subtotal</span>
-            <span>$${totals.subtotal.toFixed(2)}</span>
-          </div>
-          ${totals.discount > 0 ? `
-            <div class="summary-row" style="color:var(--success); font-weight:700;">
-              <span>Coupon Discount</span>
-              <span>-$${totals.discount.toFixed(2)}</span>
+              <button class="checkout-cta-btn" style="margin-top:16px;" onclick="app.validateAndProceedToCheckout()">
+                Proceed to Checkout ($${totals.total.toFixed(2)}) →
+              </button>
             </div>
-          ` : ""}
-          <div class="summary-row">
-            <span>Delivery Fee</span>
-            <span>${totals.deliveryFee === 0 ? "<strong style='color:var(--success);'>FREE</strong>" : `$${totals.deliveryFee.toFixed(2)}`}</span>
           </div>
-          <div class="summary-row">
-            <span>Estimated Tax (8%)</span>
-            <span>$${totals.tax.toFixed(2)}</span>
-          </div>
-          <div class="summary-row total">
-            <span>Grand Total</span>
-            <span>$${totals.total.toFixed(2)}</span>
-          </div>
-
-          <button class="checkout-cta-btn" style="margin-top:16px;" onclick="app.validateAndProceedToCheckout()">
-            Proceed to Checkout ($${totals.total.toFixed(2)}) →
-          </button>
         </div>
       ` : `
         <div style="text-align:center; padding: 50px 20px;">
@@ -1293,161 +1338,185 @@ class AppController {
     const step = this.checkoutState.step;
 
     container.innerHTML = `
-      <!-- Checkout Stepper Indicator -->
-      <div class="checkout-stepper">
-        <div class="step-indicator ${step >= 1 ? "active" : ""} ${step > 1 ? "completed" : ""}">
-          <div class="step-circle">${step > 1 ? "✓" : "1"}</div>
-          <span class="step-label">Address</span>
-        </div>
-        <div class="step-indicator ${step >= 2 ? "active" : ""} ${step > 2 ? "completed" : ""}">
-          <div class="step-circle">${step > 2 ? "✓" : "2"}</div>
-          <span class="step-label">Delivery</span>
-        </div>
-        <div class="step-indicator ${step >= 3 ? "active" : ""} ${step > 3 ? "completed" : ""}">
-          <div class="step-circle">${step > 3 ? "✓" : "3"}</div>
-          <span class="step-label">Payment</span>
-        </div>
-        <div class="step-indicator ${step >= 4 ? "active" : ""}">
-          <div class="step-circle">4</div>
-          <span class="step-label">Review</span>
-        </div>
-      </div>
-
-      <div style="padding:16px;">
-        <!-- STEP 1: Address Selection -->
-        ${step === 1 ? `
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <h3 style="font-size:14px; font-weight:800;">Select Delivery Address</h3>
-            <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openAddAddressModal()">+ Add New</button>
+      <div class="checkout-layout-container">
+        <!-- Steps Column -->
+        <div class="checkout-steps-column">
+          <!-- Checkout Stepper Indicator -->
+          <div class="checkout-stepper">
+            <div class="step-indicator ${step >= 1 ? "active" : ""} ${step > 1 ? "completed" : ""}">
+              <div class="step-circle">${step > 1 ? "✓" : "1"}</div>
+              <span class="step-label">Address</span>
+            </div>
+            <div class="step-indicator ${step >= 2 ? "active" : ""} ${step > 2 ? "completed" : ""}">
+              <div class="step-circle">${step > 2 ? "✓" : "2"}</div>
+              <span class="step-label">Delivery</span>
+            </div>
+            <div class="step-indicator ${step >= 3 ? "active" : ""} ${step > 3 ? "completed" : ""}">
+              <div class="step-circle">${step > 3 ? "✓" : "3"}</div>
+              <span class="step-label">Payment</span>
+            </div>
+            <div class="step-indicator ${step >= 4 ? "active" : ""}">
+              <div class="step-circle">4</div>
+              <span class="step-label">Review</span>
+            </div>
           </div>
-          ${addresses.map(addr => `
-            <div class="address-card-item ${addr.id === this.checkoutState.selectedAddressId ? "selected" : ""}" onclick="app.checkoutState.selectedAddressId = '${addr.id}'; app.renderCheckout();">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <strong>${addr.fullName}</strong>
-                <span class="addr-tag">${addr.label}</span>
+
+          <div style="padding:16px;">
+            <!-- STEP 1: Address Selection -->
+            ${step === 1 ? `
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="font-size:14px; font-weight:800;">Select Delivery Address</h3>
+                <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openAddAddressModal()">+ Add New</button>
               </div>
-              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}</div>
-              <div style="font-size:11px; color:var(--text-subtle); margin-top:2px;">Phone: ${addr.phone}</div>
-            </div>
-          `).join("")}
-          <button class="checkout-cta-btn" style="margin-top:16px;" onclick="app.checkoutState.step = 2; app.renderCheckout();">
-            Continue to Delivery Options →
-          </button>
-        ` : ""}
+              ${addresses.map(addr => `
+                <div class="address-card-item ${addr.id === this.checkoutState.selectedAddressId ? "selected" : ""}" onclick="app.checkoutState.selectedAddressId = '${addr.id}'; app.renderCheckout();">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                      <strong>${addr.fullName}</strong>
+                      <span class="addr-tag" style="margin-left:6px;">${addr.label}</span>
+                      ${addr.isDefault ? `<span style="font-size:10px; color:var(--success); font-weight:700; margin-left:4px;">(Default)</span>` : ""}
+                    </div>
+                  </div>
+                  <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}</div>
+                  <div style="font-size:11px; color:var(--text-subtle); margin-top:2px;">Phone: ${addr.phone}</div>
+                </div>
+              `).join("")}
+              <button class="checkout-cta-btn" style="margin-top:16px;" onclick="app.checkoutState.step = 2; app.renderCheckout();">
+                Continue to Delivery Options →
+              </button>
+            ` : ""}
 
-        <!-- STEP 2: Delivery Speed Option -->
-        ${step === 2 ? `
-          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Choose Delivery Speed</h3>
-          <div class="payment-method-card ${this.checkoutState.deliverySpeed === "standard" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'standard'; app.renderCheckout();">
-            <span style="font-size:24px;">📦</span>
-            <div>
-              <strong>Standard Delivery (FREE)</strong>
-              <div style="font-size:11px; color:var(--text-muted);">Estimated arrival in 2-3 business days</div>
-            </div>
-          </div>
-          <div class="payment-method-card ${this.checkoutState.deliverySpeed === "express" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'express'; app.renderCheckout();">
-            <span style="font-size:24px;">⚡</span>
-            <div>
-              <strong>Express Priority Delivery ($5.99)</strong>
-              <div style="font-size:11px; color:var(--text-muted);">Guaranteed Next-Day Delivery</div>
-            </div>
-          </div>
-          <div class="payment-method-card ${this.checkoutState.deliverySpeed === "same_day" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'same_day'; app.renderCheckout();">
-            <span style="font-size:24px;">🚀</span>
-            <div>
-              <strong>Same-Day Courier Delivery ($9.99)</strong>
-              <div style="font-size:11px; color:var(--text-muted);">Arrives today before 9 PM</div>
-            </div>
-          </div>
-          <div style="display:flex; gap:8px; margin-top:16px;">
-            <button class="tool-btn" style="flex:1;" onclick="app.checkoutState.step = 1; app.renderCheckout();">← Back</button>
-            <button class="checkout-cta-btn" style="flex:2;" onclick="app.checkoutState.step = 3; app.renderCheckout();">Proceed to Payment →</button>
-          </div>
-        ` : ""}
-
-        <!-- STEP 3: Payment Method -->
-        ${step === 3 ? `
-          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Select Payment Method</h3>
-          <div class="payment-method-card ${this.checkoutState.paymentMethod === "card" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'card'; app.renderCheckout();">
-            <span>💳</span>
-            <div>
-              <strong>Credit / Debit Card</strong>
-              <div style="font-size:11px; color:var(--text-muted);">Visa, Mastercard, Amex (3DS Verified)</div>
-            </div>
-          </div>
-
-          ${this.checkoutState.paymentMethod === "card" ? `
-            <div class="credit-card-preview">
-              <div class="card-chip"></div>
-              <div class="card-number-preview">•••• •••• •••• 4242</div>
-              <div style="display:flex; justify-content:space-between; font-size:12px;">
-                <span>ALEX MORGAN</span>
-                <span>12 / 28</span>
+            <!-- STEP 2: Delivery Speed Option -->
+            ${step === 2 ? `
+              <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Choose Delivery Speed</h3>
+              <div class="payment-method-card ${this.checkoutState.deliverySpeed === "standard" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'standard'; app.renderCheckout();">
+                <span style="font-size:24px;">📦</span>
+                <div>
+                  <strong>Standard Delivery (FREE)</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Estimated arrival in 2-3 business days</div>
+                </div>
               </div>
-            </div>
-          ` : ""}
-
-          <div class="payment-method-card ${this.checkoutState.paymentMethod === "upi" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'upi'; app.renderCheckout();">
-            <span>📱</span>
-            <div>
-              <strong>Instant UPI / Apple Pay / Google Pay</strong>
-              <div style="font-size:11px; color:var(--text-muted);">Instant zero-fee checkout</div>
-            </div>
-          </div>
-
-          <div class="payment-method-card ${this.checkoutState.paymentMethod === "cod" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'cod'; app.renderCheckout();">
-            <span>💵</span>
-            <div>
-              <strong>Cash on Delivery (COD)</strong>
-              <div style="font-size:11px; color:var(--text-muted);">Pay cash or UPI at delivery doorstep</div>
-            </div>
-          </div>
-
-          <div style="display:flex; gap:8px; margin-top:16px;">
-            <button class="tool-btn" style="flex:1;" onclick="app.checkoutState.step = 2; app.renderCheckout();">← Back</button>
-            <button class="checkout-cta-btn" style="flex:2;" onclick="app.checkoutState.step = 4; app.renderCheckout();">Review Order →</button>
-          </div>
-        ` : ""}
-
-        <!-- STEP 4: Review & Place Order -->
-        ${step === 4 ? `
-          <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Verify & Confirm Order</h3>
-          
-          <!-- Shipping Summary -->
-          <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted);">DELIVERING TO:</div>
-            <div style="font-size:13px; font-weight:700; margin-top:2px;">${selectedAddr?.fullName} (${selectedAddr?.label})</div>
-            <div style="font-size:12px; color:var(--text-muted);">${selectedAddr?.street}, ${selectedAddr?.city}</div>
-          </div>
-
-          <!-- Payment Summary -->
-          <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted);">PAYMENT METHOD:</div>
-            <div style="font-size:13px; font-weight:700; margin-top:2px;">
-              ${this.checkoutState.paymentMethod === "card" ? "Credit Card (Visa ending 4242)" : this.checkoutState.paymentMethod === "upi" ? "UPI / Instant App Pay" : "Cash on Delivery"}
-            </div>
-          </div>
-
-          <!-- Items preview -->
-          <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">ORDER ITEMS (${cartItems.length}):</div>
-            ${cartItems.map(item => `
-              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                <span>${item.quantity}x ${item.name}</span>
-                <strong>$${(item.price * item.quantity).toFixed(2)}</strong>
+              <div class="payment-method-card ${this.checkoutState.deliverySpeed === "express" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'express'; app.renderCheckout();">
+                <span style="font-size:24px;">⚡</span>
+                <div>
+                  <strong>Express Priority Delivery ($5.99)</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Guaranteed Next-Day Delivery</div>
+                </div>
               </div>
-            `).join("")}
-          </div>
+              <div class="payment-method-card ${this.checkoutState.deliverySpeed === "same_day" ? "selected" : ""}" onclick="app.checkoutState.deliverySpeed = 'same_day'; app.renderCheckout();">
+                <span style="font-size:24px;">🚀</span>
+                <div>
+                  <strong>Same-Day Courier Delivery ($9.99)</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Arrives today before 9 PM</div>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:16px;">
+                <button class="tool-btn" style="flex:1;" onclick="app.checkoutState.step = 1; app.renderCheckout();">← Back</button>
+                <button class="checkout-cta-btn" style="flex:2;" onclick="app.checkoutState.step = 3; app.renderCheckout();">Proceed to Payment →</button>
+              </div>
+            ` : ""}
 
-          <!-- Price Final -->
-          <div class="order-summary-card" style="margin:0 0 16px 0;">
-            <div class="summary-row"><span>Total Payable</span><strong style="color:var(--primary); font-size:16px;">$${totals.total.toFixed(2)}</strong></div>
-          </div>
+            <!-- STEP 3: Payment Method -->
+            ${step === 3 ? `
+              <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Select Payment Method</h3>
+              <div class="payment-method-card ${this.checkoutState.paymentMethod === "card" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'card'; app.renderCheckout();">
+                <span>💳</span>
+                <div>
+                  <strong>Credit / Debit Card</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Visa, Mastercard, Amex (3DS Verified)</div>
+                </div>
+              </div>
 
-          <button class="checkout-cta-btn" onclick="app.triggerPaymentVerification()">
-            🔒 Place Order & Pay ($${totals.total.toFixed(2)})
-          </button>
-        ` : ""}
+              ${this.checkoutState.paymentMethod === "card" ? `
+                <div class="credit-card-preview">
+                  <div class="card-chip"></div>
+                  <div class="card-number-preview">•••• •••• •••• 4242</div>
+                  <div style="display:flex; justify-content:space-between; font-size:12px;">
+                    <span>ALEX MORGAN</span>
+                    <span>12 / 28</span>
+                  </div>
+                </div>
+              ` : ""}
+
+              <div class="payment-method-card ${this.checkoutState.paymentMethod === "upi" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'upi'; app.renderCheckout();">
+                <span>📱</span>
+                <div>
+                  <strong>Instant UPI / Apple Pay / Google Pay</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Instant zero-fee checkout</div>
+                </div>
+              </div>
+
+              <div class="payment-method-card ${this.checkoutState.paymentMethod === "cod" ? "selected" : ""}" onclick="app.checkoutState.paymentMethod = 'cod'; app.renderCheckout();">
+                <span>💵</span>
+                <div>
+                  <strong>Cash on Delivery (COD)</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Pay cash or UPI at delivery doorstep</div>
+                </div>
+              </div>
+
+              <div style="display:flex; gap:8px; margin-top:16px;">
+                <button class="tool-btn" style="flex:1;" onclick="app.checkoutState.step = 2; app.renderCheckout();">← Back</button>
+                <button class="checkout-cta-btn" style="flex:2;" onclick="app.checkoutState.step = 4; app.renderCheckout();">Review Order →</button>
+              </div>
+            ` : ""}
+
+            <!-- STEP 4: Review & Place Order -->
+            ${step === 4 ? `
+              <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Verify & Confirm Order</h3>
+              
+              <!-- Shipping Summary -->
+              <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
+                <div style="font-size:11px; font-weight:700; color:var(--text-muted);">DELIVERING TO:</div>
+                <div style="font-size:13px; font-weight:700; margin-top:2px;">${selectedAddr?.fullName} (${selectedAddr?.label})</div>
+                <div style="font-size:12px; color:var(--text-muted);">${selectedAddr?.street}, ${selectedAddr?.city}</div>
+              </div>
+
+              <!-- Payment Summary -->
+              <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
+                <div style="font-size:11px; font-weight:700; color:var(--text-muted);">PAYMENT METHOD:</div>
+                <div style="font-size:13px; font-weight:700; margin-top:2px;">
+                  ${this.checkoutState.paymentMethod === "card" ? "Credit Card (Visa ending 4242)" : this.checkoutState.paymentMethod === "upi" ? "UPI / Instant App Pay" : "Cash on Delivery"}
+                </div>
+              </div>
+
+              <!-- Items preview -->
+              <div style="background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:12px; margin-bottom:10px;">
+                <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">ORDER ITEMS (${cartItems.length}):</div>
+                ${cartItems.map(item => `
+                  <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                    <span>${item.quantity}x ${item.name}</span>
+                    <strong>$${(item.price * item.quantity).toFixed(2)}</strong>
+                  </div>
+                `).join("")}
+              </div>
+
+              <!-- Price Final -->
+              <div class="order-summary-card" style="margin:0 0 16px 0;">
+                <div class="summary-row"><span>Total Payable</span><strong style="color:var(--primary); font-size:16px;">$${totals.total.toFixed(2)}</strong></div>
+              </div>
+
+              <button class="checkout-cta-btn" onclick="app.triggerPaymentVerification()">
+                🔒 Place Order & Pay ($${totals.total.toFixed(2)})
+              </button>
+            ` : ""}
+          </div>
+        </div>
+
+        <!-- Checkout Summary Column (Visible on Laptop / Desktop) -->
+        <div class="checkout-summary-column">
+          <div class="order-summary-card checkout-sticky-summary">
+            <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Order Summary</h3>
+            <div class="summary-row"><span>Items (${cartItems.length}):</span><span>$${totals.subtotal.toFixed(2)}</span></div>
+            ${totals.discount > 0 ? `<div class="summary-row" style="color:var(--success); font-weight:700;"><span>Discount:</span><span>-$${totals.discount.toFixed(2)}</span></div>` : ""}
+            <div class="summary-row"><span>Delivery:</span><span>${totals.deliveryFee === 0 ? "FREE" : `$${totals.deliveryFee.toFixed(2)}`}</span></div>
+            <div class="summary-row"><span>Tax (8%):</span><span>$${totals.tax.toFixed(2)}</span></div>
+            <div class="summary-row total"><span>Total:</span><span>$${totals.total.toFixed(2)}</span></div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:10px; display:flex; align-items:center; gap:6px;">
+              <span>🔒</span>
+              <span>256-bit SSL Encrypted Checkout</span>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1816,7 +1885,6 @@ class AppController {
     if (!container) return;
 
     const user = appState.state.user;
-    const addresses = appState.getAddresses();
 
     container.innerHTML = `
       <!-- User Profile Header -->
@@ -1832,52 +1900,49 @@ class AppController {
       </div>
 
       <div class="account-menu-list">
-        <!-- Address Book Group -->
-        <div class="account-menu-group">
-          <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="app.toggleSavedAddresses()">
-            <span>📍 SAVED ADDRESSES (${addresses.length})</span>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <button onclick="event.stopPropagation(); app.openAddAddressModal()" style="color:var(--primary); font-weight:700; background:transparent; border:none; cursor:pointer;">+ Add New</button>
-              <span style="font-size:12px; transition: transform 0.2s; transform: ${this.savedAddressesExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}">▼</span>
+        <div class="account-menu-grid">
+          <!-- Appearance & Settings Group (Mobile & Desktop Accessible) -->
+          <div class="account-menu-group">
+            <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle);">
+              🎨 APPEARANCE & SETTINGS
+            </div>
+            <div class="account-menu-item" style="cursor:pointer;" onclick="app.toggleTheme()">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span>🌓</span>
+                <div>
+                  <strong>Theme Mode</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Switch between Light & Dark modes</div>
+                </div>
+              </div>
+              <span class="tool-btn active" style="padding:4px 10px; font-size:11px;">
+                ${document.documentElement.getAttribute("data-theme") === "dark" ? "🌙 Dark" : "☀️ Light"}
+              </span>
+            </div>
+            <div class="account-menu-item" style="cursor:pointer;" onclick="app.resetAllData()">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span>🔄</span>
+                <div>
+                  <strong style="color:var(--danger);">Reset Demo Data</strong>
+                  <div style="font-size:11px; color:var(--text-muted);">Restore orders, cart & addresses</div>
+                </div>
+              </div>
+              <button class="tool-btn" style="color:var(--danger); border-color:rgba(239, 68, 68, 0.3);">Reset</button>
             </div>
           </div>
-          <div style="display: ${this.savedAddressesExpanded ? 'block' : 'none'};">
-            ${addresses.length === 0 ? `
-              <div style="padding: 24px 16px; text-align: center; color: var(--text-muted);">
-                <p style="margin-bottom: 8px; font-weight:600;">No saved addresses</p>
-                <p style="font-size: 12px; margin-bottom: 16px;">Add your first address to make checkout and delivery faster.</p>
-                <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openAddAddressModal()">+ Add New Address</button>
-              </div>
-            ` : `
-              ${addresses.map(addr => `
-                <div class="account-menu-item" style="flex-wrap: wrap; gap: 10px; align-items: flex-start; padding-top:16px; padding-bottom:16px;">
-                  <div style="flex: 1 1 200px;">
-                    <strong>${addr.fullName}</strong> <span class="addr-tag">${addr.label}</span> ${addr.isDefault ? `<span style="font-size:10px; color:var(--success); font-weight:700;">(Default)</span>` : ""}
-                    <div style="font-size:11px; color:var(--text-muted); line-height: 1.4; margin-top: 4px;">
-                      ${addr.street}<br/>
-                      ${addr.city}, ${addr.state || ''} ${addr.zip || ''}<br/>
-                      ${addr.country || ''}
-                    </div>
-                  </div>
-                  <div style="display:flex; gap:6px; align-items: flex-start;">
-                    ${!addr.isDefault ? `<button class="tool-btn" onclick="app.setDefaultAddr('${addr.id}')">Set Default</button>` : ""}
-                    <button class="tool-btn" style="color:var(--danger);" onclick="if(confirm('Delete this address?')) app.deleteAddr('${addr.id}')">✕</button>
-                  </div>
-                </div>
-              `).join("")}
-            `}
-          </div>
-        </div>
 
-        <!-- Quick Links -->
-        <div class="account-menu-group">
-          <div class="account-menu-item" onclick="app.navigate('returns')">
-            <span>🔄 Returns & Refunds Hub</span>
-            <span>→</span>
-          </div>
-          <div class="account-menu-item" onclick="app.navigate('support')">
-            <span>💬 Help Center & Live Support</span>
-            <span>→</span>
+          <!-- Quick Links -->
+          <div class="account-menu-group">
+            <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle);">
+              ℹ️ HELP & POLICIES
+            </div>
+            <div class="account-menu-item" onclick="app.navigate('returns')" style="cursor:pointer;">
+              <span>🔄 Returns & Refunds Hub</span>
+              <span>→</span>
+            </div>
+            <div class="account-menu-item" onclick="app.navigate('support')" style="cursor:pointer;">
+              <span>💬 Help Center & Live Support</span>
+              <span>→</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1961,7 +2026,10 @@ class AppController {
 
     const finalStreet = apt ? `${street}, ${apt}` : street;
 
-    appState.addAddress({ fullName, street: finalStreet, city, state, zip, country, label, phone: "+1 555-234-5678", isDefault });
+    const newAddr = appState.addAddress({ fullName, street: finalStreet, city, state, zip, country, label, phone: "+1 555-234-5678", isDefault });
+    if (this.checkoutState) {
+      this.checkoutState.selectedAddressId = newAddr.id;
+    }
     this.closeModal();
     this.showToast("Address Added ✓");
     if (this.currentView === "account") this.renderAccount();
