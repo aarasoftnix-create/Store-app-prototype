@@ -4,7 +4,7 @@ class AppController {
     this.currentView = "home";
     this.viewParams = {};
     this.activePdpProductId = null;
-    this.catalogFilters = {
+    this.productsFilters = {
       category: "all",
       brands: [],
       minPrice: 0,
@@ -13,8 +13,8 @@ class AppController {
       inStockOnly: false,
       isDealOnly: false
     };
-    this.catalogSort = "featured";
-    this.catalogViewMode = "grid"; // grid | list
+    this.productsSort = "featured";
+    this.productsViewMode = "grid"; // grid | list
     this.checkoutState = {
       step: 1,
       selectedAddressId: null,
@@ -28,6 +28,7 @@ class AppController {
     this.dealTimerInterval = null;
     this.bannerInterval = null;
     this.activeBannerSlide = 0;
+    this.savedAddressesExpanded = false;
   }
 
   init() {
@@ -128,11 +129,11 @@ class AppController {
       item.classList.toggle("active", item.dataset.targetView === viewName);
     });
 
-    // Toggle Main header (Home, Catalog, Orders, Account) vs Inner compact navigation header
+    // Toggle Main header (Home, products, Orders, Account) vs Inner compact navigation header
     const headerHome = document.getElementById("headerHome");
     const headerInner = document.getElementById("headerInner");
 
-    const isMainView = ["home", "catalog", "orders", "account"].includes(viewName);
+    const isMainView = ["home", "products", "orders", "account"].includes(viewName);
 
     if (isMainView) {
       if (headerHome) headerHome.style.display = "flex";
@@ -169,8 +170,8 @@ class AppController {
       case "home":
         this.renderHome();
         break;
-      case "catalog":
-        this.renderCatalog();
+      case "products":
+        this.renderproducts();
         break;
       case "search":
         this.renderSearch();
@@ -311,7 +312,7 @@ class AppController {
       <!-- Categories Circular Strip -->
       <div class="section-title-wrap">
         <h2 class="section-title">Shop by Category</h2>
-        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('catalog')">See All →</a>
+        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('products')">See All →</a>
       </div>
       <div class="category-scroll-strip">
         ${categories.map(c => `
@@ -344,7 +345,7 @@ class AppController {
       <!-- New Arrivals -->
       <div class="section-title-wrap" style="margin-top: 16px;">
         <h2 class="section-title">🔥 New Arrivals</h2>
-        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('catalog')">View More →</a>
+        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('products')">View More →</a>
       </div>
       <div class="products-horizontal-scroll">
         ${newArrivals.map(p => this.renderProductCardHtml(p, true)).join("")}
@@ -357,7 +358,7 @@ class AppController {
           <span style="font-size:10px; color:var(--text-muted); font-weight:600;">Personalized based on your browsing & wishlist</span>
         </div>
       </div>
-      <div class="products-grid-2col">
+      <div class="products-grid-3col">
         ${recommended.map(p => this.renderProductCardHtml(p, false)).join("")}
       </div>
 
@@ -365,7 +366,7 @@ class AppController {
       <div class="section-title-wrap" style="margin-top: 20px;">
         <h2 class="section-title">⭐ Trending & Popular</h2>
       </div>
-      <div class="products-grid-2col">
+      <div class="products-grid-3col">
         ${popularProducts.map(p => this.renderProductCardHtml(p, false)).join("")}
       </div>
 
@@ -415,16 +416,16 @@ class AppController {
     `;
   }
 
-  // --- Module 2: Products Catalog & Faceted Filters ---
-  renderCatalog() {
-    const container = document.getElementById("view-catalog");
+  // --- Module 2: Products products & Faceted Filters ---
+  renderproducts() {
+    const container = document.getElementById("view-products");
     if (!container) return;
 
-    const products = appState.searchProducts("", this.catalogFilters, this.catalogSort);
+    const products = appState.searchProducts("", this.productsFilters, this.productsSort);
     const categories = [{ id: "all", name: "All Products" }, ...SEED_DATA.categories];
 
     container.innerHTML = `
-      <div class="catalog-top-controls">
+      <div class="products-top-controls">
         <div class="filter-sort-bar">
           <button class="filter-btn-pill ${this.hasActiveFilters() ? "has-filters" : ""}" onclick="app.openFilterDrawer()">
             <span>⚙️ Filters</span>
@@ -433,25 +434,25 @@ class AppController {
 
           <div class="sort-select-wrap">
             <label style="font-size:11px; color:var(--text-muted);">Sort:</label>
-            <select onchange="app.changeCatalogSort(this.value)">
-              <option value="featured" ${this.catalogSort === "featured" ? "selected" : ""}>Featured</option>
-              <option value="price_asc" ${this.catalogSort === "price_asc" ? "selected" : ""}>Price: Low to High</option>
-              <option value="price_desc" ${this.catalogSort === "price_desc" ? "selected" : ""}>Price: High to Low</option>
-              <option value="rating" ${this.catalogSort === "rating" ? "selected" : ""}>Top Rated</option>
-              <option value="newest" ${this.catalogSort === "newest" ? "selected" : ""}>Newest</option>
+            <select onchange="app.changeproductsSort(this.value)">
+              <option value="featured" ${this.productsSort === "featured" ? "selected" : ""}>Featured</option>
+              <option value="price_asc" ${this.productsSort === "price_asc" ? "selected" : ""}>Price: Low to High</option>
+              <option value="price_desc" ${this.productsSort === "price_desc" ? "selected" : ""}>Price: High to Low</option>
+              <option value="rating" ${this.productsSort === "rating" ? "selected" : ""}>Top Rated</option>
+              <option value="newest" ${this.productsSort === "newest" ? "selected" : ""}>Newest</option>
             </select>
           </div>
 
           <div class="view-toggle-btns">
-            <button class="view-toggle-btn ${this.catalogViewMode === "grid" ? "active" : ""}" onclick="app.setCatalogViewMode('grid')">田</button>
-            <button class="view-toggle-btn ${this.catalogViewMode === "list" ? "active" : ""}" onclick="app.setCatalogViewMode('list')">☰</button>
+            <button class="view-toggle-btn ${this.productsViewMode === "grid" ? "active" : ""}" onclick="app.setproductsViewMode('grid')">田</button>
+            <button class="view-toggle-btn ${this.productsViewMode === "list" ? "active" : ""}" onclick="app.setproductsViewMode('list')">☰</button>
           </div>
         </div>
 
         <!-- Horizontal Category Pills -->
         <div class="category-filter-tabs">
           ${categories.map(c => `
-            <button class="cat-tab-pill ${this.catalogFilters.category === c.id ? "active" : ""}" onclick="app.filterByCategory('${c.id}')">
+            <button class="cat-tab-pill ${this.productsFilters.category === c.id ? "active" : ""}" onclick="app.filterByCategory('${c.id}')">
               ${c.name}
             </button>
           `).join("")}
@@ -461,17 +462,17 @@ class AppController {
       <!-- Result Count Bar -->
       <div style="padding: 10px 16px; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-muted);">
         <span>Showing <strong>${products.length}</strong> items</span>
-        ${this.hasActiveFilters() ? `<a href="javascript:void(0)" onclick="app.clearCatalogFilters()" style="color:var(--danger); font-weight:700;">Reset Filters</a>` : ""}
+        ${this.hasActiveFilters() ? `<a href="javascript:void(0)" onclick="app.clearproductsFilters()" style="color:var(--danger); font-weight:700;">Reset Filters</a>` : ""}
       </div>
 
       <!-- Products Grid / List -->
-      <div class="${this.catalogViewMode === "grid" ? "products-grid-2col" : "cart-items-list"}">
+      <div class="${this.productsViewMode === "grid" ? "products-grid-3col" : "cart-items-list"}">
         ${products.length > 0 ? products.map(p => this.renderProductCardHtml(p, false)).join("") : `
           <div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px;">
             <div style="font-size: 40px; margin-bottom: 8px;">🛍️</div>
             <h3 style="font-size:16px; font-weight:700;">No Products Found</h3>
             <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">Try adjusting your filters or price range.</p>
-            <button class="tool-btn" style="margin: 16px auto 0 auto; background:var(--primary); color:#fff;" onclick="app.clearCatalogFilters()">Reset All Filters</button>
+            <button class="tool-btn" style="margin: 16px auto 0 auto; background:var(--primary); color:#fff;" onclick="app.clearproductsFilters()">Reset All Filters</button>
           </div>
         `}
       </div>
@@ -480,33 +481,33 @@ class AppController {
 
   hasActiveFilters() {
     return (
-      this.catalogFilters.category !== "all" ||
-      this.catalogFilters.brands.length > 0 ||
-      this.catalogFilters.minPrice > 0 ||
-      this.catalogFilters.maxPrice < 2000 ||
-      this.catalogFilters.minRating > 0 ||
-      this.catalogFilters.inStockOnly ||
-      this.catalogFilters.isDealOnly
+      this.productsFilters.category !== "all" ||
+      this.productsFilters.brands.length > 0 ||
+      this.productsFilters.minPrice > 0 ||
+      this.productsFilters.maxPrice < 2000 ||
+      this.productsFilters.minRating > 0 ||
+      this.productsFilters.inStockOnly ||
+      this.productsFilters.isDealOnly
     );
   }
 
   filterByCategory(catId) {
-    this.catalogFilters.category = catId;
-    this.navigate("catalog");
+    this.productsFilters.category = catId;
+    this.navigate("products");
   }
 
-  changeCatalogSort(sortValue) {
-    this.catalogSort = sortValue;
-    this.renderCatalog();
+  changeproductsSort(sortValue) {
+    this.productsSort = sortValue;
+    this.renderproducts();
   }
 
-  setCatalogViewMode(mode) {
-    this.catalogViewMode = mode;
-    this.renderCatalog();
+  setproductsViewMode(mode) {
+    this.productsViewMode = mode;
+    this.renderproducts();
   }
 
-  clearCatalogFilters() {
-    this.catalogFilters = {
+  clearproductsFilters() {
+    this.productsFilters = {
       category: "all",
       brands: [],
       minPrice: 0,
@@ -515,7 +516,7 @@ class AppController {
       inStockOnly: false,
       isDealOnly: false
     };
-    this.renderCatalog();
+    this.renderproducts();
     this.showToast("Filters Reset");
   }
 
@@ -534,9 +535,9 @@ class AppController {
           <div style="margin-bottom: 20px;">
             <label style="font-size:13px; font-weight:700; display:flex; justify-content:space-between;">
               <span>Max Price:</span>
-              <span id="priceDisplay" style="color:var(--primary); font-weight:800;">$${this.catalogFilters.maxPrice}</span>
+              <span id="priceDisplay" style="color:var(--primary); font-weight:800;">$${this.productsFilters.maxPrice}</span>
             </label>
-            <input type="range" min="50" max="2000" step="50" value="${this.catalogFilters.maxPrice}" style="width:100%; margin-top:8px;" oninput="document.getElementById('priceDisplay').textContent = '$' + this.value; app.catalogFilters.maxPrice = Number(this.value);" />
+            <input type="range" min="50" max="2000" step="50" value="${this.productsFilters.maxPrice}" style="width:100%; margin-top:8px;" oninput="document.getElementById('priceDisplay').textContent = '$' + this.value; app.productsFilters.maxPrice = Number(this.value);" />
           </div>
 
           <!-- Brand Checkboxes -->
@@ -545,7 +546,7 @@ class AppController {
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
               ${allBrands.map(b => `
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
-                  <input type="checkbox" value="${b}" ${this.catalogFilters.brands.includes(b) ? "checked" : ""} onchange="app.toggleBrandFilter('${b}', this.checked)" />
+                  <input type="checkbox" value="${b}" ${this.productsFilters.brands.includes(b) ? "checked" : ""} onchange="app.toggleBrandFilter('${b}', this.checked)" />
                   <span>${b}</span>
                 </label>
               `).join("")}
@@ -557,7 +558,7 @@ class AppController {
             <label style="font-size:13px; font-weight:700; margin-bottom:8px; display:block;">Minimum Customer Rating</label>
             <div style="display:flex; gap:8px;">
               ${[4, 3, 0].map(r => `
-                <button class="tool-btn ${this.catalogFilters.minRating === r ? "active" : ""}" onclick="app.catalogFilters.minRating = ${r}; app.renderCatalog(); app.closeModal();">
+                <button class="tool-btn ${this.productsFilters.minRating === r ? "active" : ""}" onclick="app.productsFilters.minRating = ${r}; app.renderproducts(); app.closeModal();">
                   ${r === 0 ? "All Ratings" : `${r}★ & above`}
                 </button>
               `).join("")}
@@ -569,20 +570,20 @@ class AppController {
             <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600;">
               <span>In-Stock Only</span>
               <label class="switch-toggle">
-                <input type="checkbox" ${this.catalogFilters.inStockOnly ? "checked" : ""} onchange="app.catalogFilters.inStockOnly = this.checked;" />
+                <input type="checkbox" ${this.productsFilters.inStockOnly ? "checked" : ""} onchange="app.productsFilters.inStockOnly = this.checked;" />
                 <span class="slider-toggle"></span>
               </label>
             </label>
             <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600;">
               <span>Flash Deals Only</span>
               <label class="switch-toggle">
-                <input type="checkbox" ${this.catalogFilters.isDealOnly ? "checked" : ""} onchange="app.catalogFilters.isDealOnly = this.checked;" />
+                <input type="checkbox" ${this.productsFilters.isDealOnly ? "checked" : ""} onchange="app.productsFilters.isDealOnly = this.checked;" />
                 <span class="slider-toggle"></span>
               </label>
             </label>
           </div>
 
-          <button class="checkout-cta-btn" onclick="app.renderCatalog(); app.closeModal();">
+          <button class="checkout-cta-btn" onclick="app.renderproducts(); app.closeModal();">
             Apply Filters
           </button>
         </div>
@@ -593,9 +594,9 @@ class AppController {
 
   toggleBrandFilter(brand, isChecked) {
     if (isChecked) {
-      if (!this.catalogFilters.brands.includes(brand)) this.catalogFilters.brands.push(brand);
+      if (!this.productsFilters.brands.includes(brand)) this.productsFilters.brands.push(brand);
     } else {
-      this.catalogFilters.brands = this.catalogFilters.brands.filter(b => b !== brand);
+      this.productsFilters.brands = this.productsFilters.brands.filter(b => b !== brand);
     }
   }
 
@@ -751,7 +752,7 @@ class AppController {
         <div style="padding: 12px 16px; font-size:13px; color:var(--text-muted);">
           Found <strong>${results.length}</strong> results for "<span style="color:var(--text-main); font-weight:700;">${term}</span>"
         </div>
-        <div class="products-grid-2col">
+        <div class="products-grid-3col">
           ${results.map(p => this.renderProductCardHtml(p, false)).join("")}
         </div>
       `;
@@ -1042,7 +1043,7 @@ class AppController {
 
       <div style="padding:16px;">
         ${items.length > 0 ? `
-          <div class="products-grid-2col">
+          <div class="products-grid-3col">
             ${items.map(item => `
               <div class="product-card">
                 <div class="product-thumb-wrap" onclick="app.openProduct('${item.id}')">
@@ -1067,7 +1068,7 @@ class AppController {
             <div style="font-size: 50px; margin-bottom: 12px;">❤️</div>
             <h3 style="font-size: 16px; font-weight: 800;">Your Wishlist is Empty</h3>
             <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Save items you love and buy them whenever you are ready.</p>
-            <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('catalog')">
+            <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('products')">
               Explore Products
             </button>
           </div>
@@ -1212,8 +1213,8 @@ class AppController {
         <div style="text-align:center; padding: 50px 20px;">
           <div style="font-size: 50px; margin-bottom: 12px;">🛒</div>
           <h3 style="font-size: 16px; font-weight: 800;">Your Cart is Empty</h3>
-          <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Explore our catalog and find great deals!</p>
-          <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('catalog')">
+          <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Explore our products and find great deals!</p>
+          <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('products')">
             Start Shopping
           </button>
         </div>
@@ -1370,8 +1371,11 @@ class AppController {
               ${addresses.map(addr => `
                 <div class="address-card-item ${addr.id === this.checkoutState.selectedAddressId ? "selected" : ""}" onclick="app.checkoutState.selectedAddressId = '${addr.id}'; app.renderCheckout();">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong>${addr.fullName}</strong>
-                    <span class="addr-tag">${addr.label}</span>
+                    <div>
+                      <strong>${addr.fullName}</strong>
+                      <span class="addr-tag" style="margin-left:6px;">${addr.label}</span>
+                      ${addr.isDefault ? `<span style="font-size:10px; color:var(--success); font-weight:700; margin-left:4px;">(Default)</span>` : ""}
+                    </div>
                   </div>
                   <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}</div>
                   <div style="font-size:11px; color:var(--text-subtle); margin-top:2px;">Phone: ${addr.phone}</div>
@@ -1602,6 +1606,8 @@ class AppController {
     const container = document.getElementById("view-orders");
     if (!container) return;
 
+    if (!this.activeOrderTab) this.activeOrderTab = "all";
+
     let orders = [...appState.state.orders];
     if (this.activeOrderTab === "active") {
       orders = orders.filter(o => !["delivered", "cancelled"].includes(o.status));
@@ -1612,52 +1618,65 @@ class AppController {
     }
 
     container.innerHTML = `
-      <!-- Order Tabs -->
-      <div class="order-tabs-header">
-        <button class="order-tab-btn ${this.activeOrderTab === "all" ? "active" : ""}" onclick="app.activeOrderTab = 'all'; app.renderOrders();">All</button>
-        <button class="order-tab-btn ${this.activeOrderTab === "active" ? "active" : ""}" onclick="app.activeOrderTab = 'active'; app.renderOrders();">Active</button>
-        <button class="order-tab-btn ${this.activeOrderTab === "completed" ? "active" : ""}" onclick="app.activeOrderTab = 'completed'; app.renderOrders();">Completed</button>
-        <button class="order-tab-btn ${this.activeOrderTab === "cancelled" ? "active" : ""}" onclick="app.activeOrderTab = 'cancelled'; app.renderOrders();">Cancelled</button>
+      <!-- My Orders Header -->
+      <div style="padding:16px 16px 10px 16px; background:var(--bg-surface);">
+        <h2 style="font-size:18px; font-weight:800; color:var(--text-main); margin:0;">My Orders</h2>
       </div>
 
-      <div style="padding-bottom: 20px;">
-        ${orders.length > 0 ? orders.map(order => `
-          <div class="order-card-wrap" onclick="app.navigate('order_details', { orderId: '${order.id}' })">
-            <div class="order-header-row">
-              <div>
-                <span style="font-weight:800; font-size:13px;">#${order.orderNumber}</span>
-                <div style="font-size:11px; color:var(--text-muted);">${order.date} • ${order.items.length} items</div>
-              </div>
-              <span class="order-status-badge status-${order.status}">
-                ${order.status.replace(/_/g, " ")}
-              </span>
-            </div>
+      <!-- Order Tabs (Pills) -->
+      <div style="display:flex; gap:8px; padding:8px 16px 12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); overflow-x:auto;">
+        <button class="tool-btn ${this.activeOrderTab === "all" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'all'; app.renderOrders();">All</button>
+        <button class="tool-btn ${this.activeOrderTab === "active" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'active'; app.renderOrders();">Active</button>
+        <button class="tool-btn ${this.activeOrderTab === "completed" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'completed'; app.renderOrders();">Completed</button>
+        <button class="tool-btn ${this.activeOrderTab === "cancelled" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'cancelled'; app.renderOrders();">Cancelled</button>
+      </div>
 
-            <!-- Item Thumbs -->
-            <div style="display:flex; gap:8px; margin: 10px 0;">
-              ${order.items.map(it => `
-                <img src="${it.image}" style="width:48px; height:48px; border-radius:6px; object-fit:cover; border:1px solid var(--border-color);" alt="${it.name}" />
-              `).join("")}
-            </div>
+      <div style="padding:12px 0 24px 0;">
+        ${orders.length > 0 ? orders.map(order => {
+      const primaryItem = order.items[0] || {};
+      const productName = order.items.length > 1 ? `${primaryItem.name} + ${order.items.length - 1} more` : (primaryItem.name || "Product Item");
+      const totalQty = order.items.reduce((sum, it) => sum + (it.quantity || 1), 0);
+      const isDelivered = order.status === "delivered";
+      const isCancelled = order.status === "cancelled";
+      const statusText = isDelivered ? "Completed" : (isCancelled ? "Cancelled" : "In Delivery");
+      const statusClass = isDelivered ? "status-delivered" : (isCancelled ? "status-cancelled" : "status-out_for_delivery");
 
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:8px; margin-top:8px; font-size:12px;">
-              <div>Total: <strong style="font-size:14px; color:var(--text-main);">$${order.total.toFixed(2)}</strong></div>
-              <div style="display:flex; gap:6px;">
-                ${order.status !== "cancelled" ? `
-                  <button class="tool-btn active" onclick="event.stopPropagation(); app.navigate('tracking', { orderId: '${order.id}' })">
-                    Track 🚚
-                  </button>
-                ` : ""}
-                <button class="tool-btn" onclick="event.stopPropagation(); app.navigate('order_details', { orderId: '${order.id}' })">
-                  Details →
-                </button>
+      let actionBtnHtml = "";
+      if (isDelivered) {
+        actionBtnHtml = `<button style="color:var(--primary); font-size:12px; font-weight:700; background:none; border:none; cursor:pointer; text-decoration:none;" onclick="event.stopPropagation(); app.navigate('reviews', { productId: '${primaryItem.productId || primaryItem.id}' })">Leave a Review</button>`;
+      } else if (!isCancelled) {
+        actionBtnHtml = `<button style="color:var(--primary); font-size:12px; font-weight:700; background:none; border:none; cursor:pointer; text-decoration:none;" onclick="event.stopPropagation(); app.navigate('tracking', { orderId: '${order.id}' })">Track Order</button>`;
+      } else {
+        actionBtnHtml = `<button style="color:var(--text-muted); font-size:12px; font-weight:600; background:none; border:none; cursor:pointer; text-decoration:none;" onclick="event.stopPropagation(); app.navigate('order_details', { orderId: '${order.id}' })">Details</button>`;
+      }
+
+      return `
+            <div class="order-card-wrap" onclick="app.navigate('order_details', { orderId: '${order.id}' })" style="cursor:pointer; display:flex; gap:14px; align-items:center; padding:14px 16px; margin:10px 16px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-xl); box-shadow:var(--shadow-sm); transition:transform 0.15s ease;">
+              <img src="${primaryItem.image}" alt="${productName}" style="width:68px; height:68px; border-radius:12px; object-fit:cover; flex-shrink:0; background:var(--bg-surface-subtle);" />
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
+                <div style="font-size:14px; font-weight:700; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${productName}
+                </div>
+                <div>
+                  <span class="order-status-badge ${statusClass}" style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; display:inline-block;">
+                    ${statusText}
+                  </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                  <div style="font-size:14px; font-weight:800; color:var(--text-main);">$${order.total.toFixed(2)}</div>
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:11px; color:var(--text-muted); font-weight:600;">Qty <strong style="color:var(--text-main); font-weight:700;">${String(totalQty).padStart(2, '0')}</strong></span>
+                    ${actionBtnHtml}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        `).join("") : `
+          `;
+    }).join("") : `
           <div style="text-align:center; padding:50px 20px;">
             <div style="font-size:40px;">📦</div>
-            <h3 style="font-size:16px; font-weight:800; margin-top:8px;">No Orders in this filter</h3>
+            <h3 style="font-size:16px; font-weight:800; margin-top:8px;">No Orders Found</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">No orders match the selected filter or search.</p>
           </div>
         `}
       </div>
@@ -1817,7 +1836,7 @@ class AppController {
     if (!order) return;
 
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <div class="sheet-header" style="padding:0 0 10px 0;">
           <h3 style="font-weight:800;">Customer Invoice #${order.orderNumber}</h3>
           <button onclick="app.closeModal()">✕</button>
@@ -1847,7 +1866,7 @@ class AppController {
 
   openCancelOrderModal(orderId) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; color:var(--danger);">Cancel Order #${orderId}</h3>
         <p style="font-size:12px; color:var(--text-muted); margin: 6px 0 12px 0;">Select a cancellation reason:</p>
         <select id="cancelReasonSelect" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;">
@@ -1870,13 +1889,17 @@ class AppController {
     this.navigate("orders");
   }
 
+  toggleSavedAddresses() {
+    this.savedAddressesExpanded = !this.savedAddressesExpanded;
+    this.renderAccount();
+  }
+
   // --- Module 10: My Account & Profile ---
   renderAccount() {
     const container = document.getElementById("view-account");
     if (!container) return;
 
     const user = appState.state.user;
-    const addresses = appState.getAddresses();
 
     container.innerHTML = `
       <!-- User Profile Header -->
@@ -1893,26 +1916,6 @@ class AppController {
 
       <div class="account-menu-list">
         <div class="account-menu-grid">
-          <!-- Address Book Group -->
-          <div class="account-menu-group">
-            <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle); display:flex; justify-content:space-between; align-items:center;">
-              <span>📍 SAVED ADDRESSES (${addresses.length})</span>
-              <button onclick="app.openAddAddressModal()" style="color:var(--primary); font-weight:700;">+ Add New</button>
-            </div>
-            ${addresses.map(addr => `
-              <div class="account-menu-item">
-                <div>
-                  <strong>${addr.fullName}</strong> <span class="addr-tag">${addr.label}</span> ${addr.isDefault ? `<span style="font-size:10px; color:var(--success); font-weight:700;">(Default)</span>` : ""}
-                  <div style="font-size:11px; color:var(--text-muted);">${addr.street}, ${addr.city}</div>
-                </div>
-                <div style="display:flex; gap:6px;">
-                  ${!addr.isDefault ? `<button class="tool-btn" onclick="app.setDefaultAddr('${addr.id}')">Set Default</button>` : ""}
-                  <button class="tool-btn" style="color:var(--danger);" onclick="app.deleteAddr('${addr.id}')">✕</button>
-                </div>
-              </div>
-            `).join("")}
-          </div>
-
           <!-- Appearance & Settings Group (Mobile & Desktop Accessible) -->
           <div class="account-menu-group">
             <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle);">
@@ -1942,28 +1945,6 @@ class AppController {
             </div>
           </div>
 
-          <!-- Security & Preferences Group -->
-          <div class="account-menu-group">
-            <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle);">
-              🔒 SECURITY & PREFERENCES
-            </div>
-            <div class="account-menu-item">
-              <span>Two-Factor Authentication (2FA)</span>
-              <label class="switch-toggle">
-                <input type="checkbox" ${user.twoFactorEnabled ? "checked" : ""} onchange="app.toggle2FA()" />
-                <span class="slider-toggle"></span>
-              </label>
-            </div>
-            <div class="account-menu-item" onclick="app.openChangePasswordModal()" style="cursor:pointer;">
-              <span>Change Password</span>
-              <span>→</span>
-            </div>
-            <div class="account-menu-item" onclick="app.openLoginHistoryModal()" style="cursor:pointer;">
-              <span>Recent Login Activity</span>
-              <span>→</span>
-            </div>
-          </div>
-
           <!-- Quick Links -->
           <div class="account-menu-group">
             <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle);">
@@ -1986,7 +1967,7 @@ class AppController {
   openEditProfileModal() {
     const u = appState.state.user;
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:14px;">Edit Profile</h3>
         <label style="font-size:12px; font-weight:700;">Full Name</label>
         <input type="text" id="editUserName" value="${u.name}" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
@@ -2012,33 +1993,58 @@ class AppController {
 
   openAddAddressModal() {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:14px;">Add New Address</h3>
-        <input type="text" id="newAddrName" placeholder="Full Name" value="Alex Morgan" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
-        <input type="text" id="newAddrStreet" placeholder="Street Address" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <input type="text" id="newAddrName" placeholder="Address Name / Label (e.g. John Doe)" value="Alex Morgan" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <input type="text" id="newAddrStreet" placeholder="Full Address" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <input type="text" id="newAddrApt" placeholder="Apartment / Suite (Optional)" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
         <div style="display:flex; gap:8px; margin-bottom:8px;">
           <input type="text" id="newAddrCity" placeholder="City" style="flex:1; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
-          <input type="text" id="newAddrZip" placeholder="Zip" style="width:100px; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+          <input type="text" id="newAddrState" placeholder="State" style="width:80px; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
         </div>
-        <select id="newAddrTag" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:14px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="newAddrZip" placeholder="Zip" style="flex:1; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+          <input type="text" id="newAddrCountry" placeholder="Country" value="United States" style="flex:1; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+        </div>
+        <select id="newAddrTag" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;">
           <option value="Home">Home</option>
           <option value="Work">Work</option>
           <option value="Other">Other</option>
         </select>
-        <button class="checkout-cta-btn" onclick="app.saveNewAddress()">Save Address</button>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:14px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="newAddrIsDefault" /> Set as Default Address
+        </label>
+        <button id="saveAddrBtn" class="checkout-cta-btn" onclick="app.saveNewAddress()">Save Address</button>
       </div>
     `;
     this.openModal(modalContent);
   }
 
   saveNewAddress() {
-    const fullName = document.getElementById("newAddrName")?.value || "Alex Morgan";
-    const street = document.getElementById("newAddrStreet")?.value || "123 Maple Street";
-    const city = document.getElementById("newAddrCity")?.value || "Portland";
-    const zip = document.getElementById("newAddrZip")?.value || "97201";
+    const fullName = document.getElementById("newAddrName")?.value.trim() || "";
+    const street = document.getElementById("newAddrStreet")?.value.trim() || "";
+    const apt = document.getElementById("newAddrApt")?.value.trim() || "";
+    const city = document.getElementById("newAddrCity")?.value.trim() || "";
+    const state = document.getElementById("newAddrState")?.value.trim() || "";
+    const zip = document.getElementById("newAddrZip")?.value.trim() || "";
+    const country = document.getElementById("newAddrCountry")?.value.trim() || "";
     const label = document.getElementById("newAddrTag")?.value || "Home";
+    const isDefault = document.getElementById("newAddrIsDefault")?.checked || false;
 
-    appState.addAddress({ fullName, street, city, zip, label, state: "OR", phone: "+1 555-234-5678" });
+    if (!fullName || !street || !city || !state || !zip || !country) {
+      this.showToast("Please fill in all required fields.");
+      return;
+    }
+
+    const btn = document.getElementById("saveAddrBtn");
+    if (btn) btn.disabled = true;
+
+    const finalStreet = apt ? `${street}, ${apt}` : street;
+
+    const newAddr = appState.addAddress({ fullName, street: finalStreet, city, state, zip, country, label, phone: "+1 555-234-5678", isDefault });
+    if (this.checkoutState) {
+      this.checkoutState.selectedAddressId = newAddr.id;
+    }
     this.closeModal();
     this.showToast("Address Added ✓");
     if (this.currentView === "account") this.renderAccount();
@@ -2057,45 +2063,134 @@ class AppController {
     this.renderAccount();
   }
 
-  toggle2FA() {
-    const enabled = appState.toggle2FA();
-    this.showToast(enabled ? "2FA Enabled ✓" : "2FA Disabled");
-  }
-
-  openChangePasswordModal() {
-    const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
-        <h3 style="font-weight:800; margin-bottom:14px;">Change Password</h3>
-        <input type="password" placeholder="Current Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
-        <input type="password" placeholder="New Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
-        <input type="password" placeholder="Confirm New Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;" />
-        <button class="checkout-cta-btn" onclick="app.showToast('Password updated successfully! ✓'); app.closeModal();">Update Password</button>
-      </div>
-    `;
-    this.openModal(modalContent);
-  }
-
-  openLoginHistoryModal() {
-    const logs = appState.state.user.loginHistory;
-    const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
-        <h3 style="font-weight:800; margin-bottom:12px;">Recent Login Activity</h3>
-        ${logs.map(l => `
-          <div style="padding:10px; background:var(--bg-surface-subtle); border-radius:var(--radius-md); margin-bottom:8px; font-size:12px;">
-            <div style="display:flex; justify-content:space-between; font-weight:700;">
-              <span>${l.device}</span>
-              ${l.current ? `<span style="color:var(--success);">(Current Session)</span>` : ""}
-            </div>
-            <div style="color:var(--text-muted); margin-top:2px;">${l.location} • ${l.time} • IP: ${l.ip}</div>
-          </div>
-        `).join("")}
-        <button class="tool-btn" style="width:100%; margin-top:10px; justify-content:center;" onclick="app.closeModal()">Close</button>
-      </div>
-    `;
-    this.openModal(modalContent);
-  }
 
   // --- Module 11: Returns & Refunds ---
+  generateReturnCard(ret) {
+    let displayStatus = ret.status.charAt(0).toUpperCase() + ret.status.slice(1);
+    if (ret.status === "approved") displayStatus = "Approved";
+
+    const refundStep = ret.timeline.find(t => t.title.toLowerCase().includes("refund credited") || t.title.toLowerCase().includes("completed"));
+    const isRefunded = refundStep && refundStep.done;
+
+    // Status text (customer friendly)
+    const referenceText = `Return request #${ret.id}`;
+
+    return `
+      <div class="return-card-box" onclick="app.openReturnDetailsModal('${ret.id}')" style="cursor:pointer; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <strong>Return #${ret.id}</strong>
+          <span class="order-status-badge ${isRefunded ? 'status-delivered' : 'status-shipped'}">${displayStatus}</span>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <img src="${ret.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover;" />
+          <div>
+            <div style="font-size:13px; font-weight:700;">${ret.productName}</div>
+            <div style="font-size:11px; color:var(--text-muted);">Refund: ₹${ret.refundAmount.toFixed(2)} to ${ret.refundMethod}</div>
+            <div style="font-size:10px; color:var(--primary); font-weight:700; margin-top:2px;">${referenceText}</div>
+          </div>
+        </div>
+
+        <!-- Return Stepper Timeline -->
+        <div style="background:var(--bg-surface-subtle); padding:10px; border-radius:var(--radius-md); font-size:11px;">
+          ${ret.timeline.map(t => `
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:${t.done ? "var(--text-main)" : "var(--text-subtle)"};">
+              <span>${t.done ? "✓" : "○"} ${t.title}</span>
+              <span style="font-size:10px;">${t.date}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  openReturnDetailsModal(retId) {
+    const ret = appState.state.returns.find(r => r.id === retId);
+    if (!ret) return;
+
+    let displayStatus = ret.status.charAt(0).toUpperCase() + ret.status.slice(1);
+    if (ret.status === "approved") displayStatus = "Approved";
+
+    const refundStep = ret.timeline.find(t => t.title.toLowerCase().includes("refund credited") || t.title.toLowerCase().includes("completed"));
+    const isRefunded = refundStep && refundStep.done;
+    const isFailed = ret.status.toLowerCase() === "failed" || ret.status.toLowerCase() === "rejected";
+
+    let refundStatus = "Processing";
+    if (isRefunded) refundStatus = "Credited";
+    if (isFailed) refundStatus = "Failed";
+
+    const pickupDate = ret.timeline.find(t => t.title.toLowerCase().includes("pickup scheduled"))?.date || 'N/A';
+
+    const fullTimelineHtml = ret.timeline.map(t => {
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; color:${t.done ? "var(--text-main)" : "var(--text-subtle)"};">
+          <div>
+            <div style="font-weight:700; font-size:12px;">${t.done ? "✓" : "○"} ${t.title}</div>
+            <div style="font-size:11px; margin-top:2px;">${t.desc}</div>
+          </div>
+          <div style="font-size:10px; margin-left:12px; text-align:right;">${t.date}</div>
+        </div>
+      `;
+    }).join("");
+
+    const modalContent = `
+      <div class="centered-modal" style="padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="font-weight:800; font-size:16px;">Return Details</h3>
+          <button onclick="app.closeModal()" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+        </div>
+        
+        <div style="background:var(--bg-surface-subtle); padding:12px; border-radius:var(--radius-md); margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Return ID</div>
+          <div style="font-weight:700; font-size:13px;">${ret.id}</div>
+        </div>
+        
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Product</div>
+          <div style="font-weight:700; font-size:13px;">${ret.productName}</div>
+        </div>
+        
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Return Reason</div>
+          <div style="font-weight:600; font-size:13px;">${ret.reason}</div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Return Status</div>
+          <div style="font-weight:700; font-size:13px; color:${isRefunded ? 'var(--success)' : 'var(--text-main)'};">${displayStatus}</div>
+        </div>
+        
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Pickup</div>
+          <div style="font-weight:600; font-size:13px;">${pickupDate}</div>
+        </div>
+        
+        <hr style="border:none; border-top:1px solid var(--border-color); margin:16px 0;" />
+
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Refund</div>
+            <div style="font-weight:800; font-size:14px;">₹${ret.refundAmount.toFixed(2)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Refund Status</div>
+            <div style="font-weight:700; font-size:13px; color:${isRefunded ? 'var(--success)' : (isFailed ? 'var(--danger)' : '#f59e0b')};">${refundStatus}</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Refund Method</div>
+          <div style="font-weight:600; font-size:13px;">${ret.refundMethod}</div>
+        </div>
+
+        <div style="font-size:13px; font-weight:800; margin-bottom:12px;">Return Timeline</div>
+        <div style="padding:12px; border:1px solid var(--border-color); border-radius:var(--radius-md);">
+          ${fullTimelineHtml}
+        </div>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
   renderReturns() {
     const container = document.getElementById("view-returns");
     if (!container) return;
@@ -2110,47 +2205,8 @@ class AppController {
       </div>
 
       <div style="padding:16px;">
-        <!-- Eligible items banner -->
-        ${deliveredOrders.length > 0 ? `
-          <div style="background:var(--primary-light); border:1px solid var(--primary); border-radius:var(--radius-lg); padding:12px; margin-bottom:16px; font-size:12px;">
-            <strong>📦 Delivered items eligible for return (15-Day Window):</strong>
-            <div style="margin-top:6px;">
-              ${deliveredOrders.map(o => `
-                <button class="tool-btn active" style="margin-right:6px; margin-top:4px;" onclick="app.openReturnRequestModal('${o.id}', '${o.items[0].productId}')">
-                  Return item from #${o.orderNumber}
-                </button>
-              `).join("")}
-            </div>
-          </div>
-        ` : ""}
-
         <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Active & Past Returns (${returns.length})</h3>
-        ${returns.map(ret => `
-          <div class="return-card-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <strong>Return #${ret.id}</strong>
-              <span class="order-status-badge status-delivered">${ret.status}</span>
-            </div>
-            <div style="display:flex; gap:10px; margin-bottom:10px;">
-              <img src="${ret.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover;" />
-              <div>
-                <div style="font-size:13px; font-weight:700;">${ret.productName}</div>
-                <div style="font-size:11px; color:var(--text-muted);">Refund: $${ret.refundAmount.toFixed(2)} to ${ret.refundMethod}</div>
-                <div style="font-size:10px; color:var(--primary); font-weight:700; margin-top:2px;">${ret.erpStatus}</div>
-              </div>
-            </div>
-
-            <!-- Return Stepper Timeline -->
-            <div style="background:var(--bg-surface-subtle); padding:10px; border-radius:var(--radius-md); font-size:11px;">
-              ${ret.timeline.map(t => `
-                <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:${t.done ? "var(--text-main)" : "var(--text-subtle)"};">
-                  <span>${t.done ? "✓" : "○"} ${t.title}</span>
-                  <span style="font-size:10px;">${t.date}</span>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        `).join("")}
+        ${returns.map(ret => this.generateReturnCard(ret)).join("")}
       </div>
     `;
   }
@@ -2160,7 +2216,7 @@ class AppController {
     const item = order?.items.find(i => i.productId === productId) || order?.items[0];
 
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:10px;">Request Return for ${item?.name}</h3>
         
         <label style="font-size:12px; font-weight:700;">Reason for Return</label>
@@ -2256,7 +2312,7 @@ class AppController {
 
   openWriteReviewModal(productId) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:12px;">Write a Customer Review</h3>
         <label style="font-size:12px; font-weight:700;">Your Rating</label>
         <div class="star-rating-picker" id="reviewStarPicker" style="margin: 6px 0 12px 0;">
@@ -2454,7 +2510,7 @@ class AppController {
 
   closeTicketAndRate(ticketId) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px; text-align:center;">
+      <div class="centered-modal" style="padding:20px; text-align:center;">
         <h3 style="font-weight:800; margin-bottom:8px;">Rate Support Experience</h3>
         <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">How satisfied were you with our customer resolution?</p>
         <div class="star-rating-picker" style="justify-content:center; margin-bottom:16px;">
@@ -2480,7 +2536,7 @@ class AppController {
 
   openRaiseTicketModal(prefilledCategory = null) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:12px;">Raise a Support Claim / Ticket</h3>
         <label style="font-size:12px; font-weight:700;">Issue Category</label>
         <select id="ticketCategorySelect" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 4px 0 10px 0;">
@@ -2586,7 +2642,7 @@ class AppController {
     } else if (catId) {
       this.filterByCategory(catId);
     } else {
-      this.navigate("catalog");
+      this.navigate("products");
     }
   }
 

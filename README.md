@@ -1,6 +1,6 @@
-# ⚡ SoftnixStore — Storefront, Catalog, Search, PDP & Reviews Module
+# ⚡ SoftnixStore — Storefront, products, Search, PDP & Reviews Module
 
-This repository contains the standalone, fully-functional implementation of the **Customer Storefront & Catalog Experience** module for the SoftnixStore E-Commerce application.
+This repository contains the standalone, fully-functional implementation of the **Customer Storefront & products Experience** module for the SoftnixStore E-Commerce application.
 
 Designed for team collaboration and modular integration, this module covers all customer-facing discovery, browsing, searching, product details, and verified review inspection flows.
 
@@ -10,15 +10,15 @@ Designed for team collaboration and modular integration, this module covers all 
 
 ### 1. 🏠 Home / Storefront
 - **Hero Promotional Banners**: Auto-playing banner carousel with slide indicators, category CTAs, and dynamic tags.
-- **Categories Strip**: Circular animated category cards with direct catalog category routing.
+- **Categories Strip**: Circular animated category cards with direct products category routing.
 - **Flash Deals with Live Ticking Timer**: Real-time countdown timer (`hh:mm:ss`) highlighting discounted items.
 - **New Arrivals**: Horizontally scrollable new product releases.
 - **Trending & Popular**: 2-Column grid of customer favorite items.
 - **Personalized Recommendations**: Dynamic "Recommended For You" product suggestions.
 - **Recently Viewed Strip**: Automatically tracks and remembers the last viewed products in `localStorage`.
 
-### 2. 🛍️ Products / Catalog
-- **Customer-Safe Catalog**: Decoupled from internal ERP costs, supplier IDs, and batch data.
+### 2. 🛍️ Products / products
+- **Customer-Safe products**: Decoupled from internal ERP costs, supplier IDs, and batch data.
 - **Grid & List Views**: 2-Column Grid and 1-Column List layouts with seamless toggle.
 - **Subcategories & Brand Chips**: Quick filtering by product categories and brands.
 - **Faceted Filters Drawer**:
@@ -58,12 +58,12 @@ Designed for team collaboration and modular integration, this module covers all 
 ## 🛠️ Project Structure
 
 ```
-ecommerce-storefront-catalog-search/
+ecommerce-storefront-products-search/
 ├── index.html        # Main HTML entry point & mobile device emulator
 ├── css/
 │   └── styles.css    # Complete CSS design system, themes, and animations
 ├── js/
-│   ├── data.js       # Seed catalog database, categories, banners & reviews
+│   ├── data.js       # Seed products database, categories, banners & reviews
 │   ├── state.js      # Reactive state manager, localStorage & typo algorithm
 │   └── app.js        # Controller handling routing, search, PDP, and reviews
 └── README.md         # Module documentation
@@ -92,12 +92,12 @@ To push your section into your team repository or branch:
 
 ```bash
 # Navigate into the project folder
-cd ecommerce-storefront-catalog-search
+cd ecommerce-storefront-products-search
 
 # Initialize git (if new)
 git init
 git add .
-git commit -m "feat(storefront): implement storefront, catalog, search, pdp, and reviews module"
+git commit -m "feat(storefront): implement storefront, products, search, pdp, and reviews module"
 
 # Add your team repository remote and push
 git remote add origin <your-repo-url>
