@@ -4,7 +4,7 @@ class AppController {
     this.currentView = "home";
     this.viewParams = {};
     this.activePdpProductId = null;
-    this.catalogFilters = {
+    this.productsFilters = {
       category: "all",
       brands: [],
       minPrice: 0,
@@ -13,8 +13,8 @@ class AppController {
       inStockOnly: false,
       isDealOnly: false
     };
-    this.catalogSort = "featured";
-    this.catalogViewMode = "grid"; // grid | list
+    this.productsSort = "featured";
+    this.productsViewMode = "grid"; // grid | list
     this.checkoutState = {
       step: 1,
       selectedAddressId: null,
@@ -129,11 +129,11 @@ class AppController {
       item.classList.toggle("active", item.dataset.targetView === viewName);
     });
 
-    // Toggle Main header (Home, Catalog, Orders, Account) vs Inner compact navigation header
+    // Toggle Main header (Home, products, Orders, Account) vs Inner compact navigation header
     const headerHome = document.getElementById("headerHome");
     const headerInner = document.getElementById("headerInner");
 
-    const isMainView = ["home", "catalog", "orders", "account"].includes(viewName);
+    const isMainView = ["home", "products", "orders", "account"].includes(viewName);
 
     if (isMainView) {
       if (headerHome) headerHome.style.display = "flex";
@@ -170,8 +170,8 @@ class AppController {
       case "home":
         this.renderHome();
         break;
-      case "catalog":
-        this.renderCatalog();
+      case "products":
+        this.renderproducts();
         break;
       case "search":
         this.renderSearch();
@@ -312,7 +312,7 @@ class AppController {
       <!-- Categories Circular Strip -->
       <div class="section-title-wrap">
         <h2 class="section-title">Shop by Category</h2>
-        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('catalog')">See All →</a>
+        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('products')">See All →</a>
       </div>
       <div class="category-scroll-strip">
         ${categories.map(c => `
@@ -345,7 +345,7 @@ class AppController {
       <!-- New Arrivals -->
       <div class="section-title-wrap" style="margin-top: 16px;">
         <h2 class="section-title">🔥 New Arrivals</h2>
-        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('catalog')">View More →</a>
+        <a href="javascript:void(0)" class="section-link" onclick="app.navigate('products')">View More →</a>
       </div>
       <div class="products-horizontal-scroll">
         ${newArrivals.map(p => this.renderProductCardHtml(p, true)).join("")}
@@ -358,7 +358,7 @@ class AppController {
           <span style="font-size:10px; color:var(--text-muted); font-weight:600;">Personalized based on your browsing & wishlist</span>
         </div>
       </div>
-      <div class="products-grid-2col">
+      <div class="products-grid-3col">
         ${recommended.map(p => this.renderProductCardHtml(p, false)).join("")}
       </div>
 
@@ -366,7 +366,7 @@ class AppController {
       <div class="section-title-wrap" style="margin-top: 20px;">
         <h2 class="section-title">⭐ Trending & Popular</h2>
       </div>
-      <div class="products-grid-2col">
+      <div class="products-grid-3col">
         ${popularProducts.map(p => this.renderProductCardHtml(p, false)).join("")}
       </div>
 
@@ -416,16 +416,16 @@ class AppController {
     `;
   }
 
-  // --- Module 2: Products Catalog & Faceted Filters ---
-  renderCatalog() {
-    const container = document.getElementById("view-catalog");
+  // --- Module 2: Products products & Faceted Filters ---
+  renderproducts() {
+    const container = document.getElementById("view-products");
     if (!container) return;
 
-    const products = appState.searchProducts("", this.catalogFilters, this.catalogSort);
+    const products = appState.searchProducts("", this.productsFilters, this.productsSort);
     const categories = [{ id: "all", name: "All Products" }, ...SEED_DATA.categories];
 
     container.innerHTML = `
-      <div class="catalog-top-controls">
+      <div class="products-top-controls">
         <div class="filter-sort-bar">
           <button class="filter-btn-pill ${this.hasActiveFilters() ? "has-filters" : ""}" onclick="app.openFilterDrawer()">
             <span>⚙️ Filters</span>
@@ -434,25 +434,25 @@ class AppController {
 
           <div class="sort-select-wrap">
             <label style="font-size:11px; color:var(--text-muted);">Sort:</label>
-            <select onchange="app.changeCatalogSort(this.value)">
-              <option value="featured" ${this.catalogSort === "featured" ? "selected" : ""}>Featured</option>
-              <option value="price_asc" ${this.catalogSort === "price_asc" ? "selected" : ""}>Price: Low to High</option>
-              <option value="price_desc" ${this.catalogSort === "price_desc" ? "selected" : ""}>Price: High to Low</option>
-              <option value="rating" ${this.catalogSort === "rating" ? "selected" : ""}>Top Rated</option>
-              <option value="newest" ${this.catalogSort === "newest" ? "selected" : ""}>Newest</option>
+            <select onchange="app.changeproductsSort(this.value)">
+              <option value="featured" ${this.productsSort === "featured" ? "selected" : ""}>Featured</option>
+              <option value="price_asc" ${this.productsSort === "price_asc" ? "selected" : ""}>Price: Low to High</option>
+              <option value="price_desc" ${this.productsSort === "price_desc" ? "selected" : ""}>Price: High to Low</option>
+              <option value="rating" ${this.productsSort === "rating" ? "selected" : ""}>Top Rated</option>
+              <option value="newest" ${this.productsSort === "newest" ? "selected" : ""}>Newest</option>
             </select>
           </div>
 
           <div class="view-toggle-btns">
-            <button class="view-toggle-btn ${this.catalogViewMode === "grid" ? "active" : ""}" onclick="app.setCatalogViewMode('grid')">田</button>
-            <button class="view-toggle-btn ${this.catalogViewMode === "list" ? "active" : ""}" onclick="app.setCatalogViewMode('list')">☰</button>
+            <button class="view-toggle-btn ${this.productsViewMode === "grid" ? "active" : ""}" onclick="app.setproductsViewMode('grid')">田</button>
+            <button class="view-toggle-btn ${this.productsViewMode === "list" ? "active" : ""}" onclick="app.setproductsViewMode('list')">☰</button>
           </div>
         </div>
 
         <!-- Horizontal Category Pills -->
         <div class="category-filter-tabs">
           ${categories.map(c => `
-            <button class="cat-tab-pill ${this.catalogFilters.category === c.id ? "active" : ""}" onclick="app.filterByCategory('${c.id}')">
+            <button class="cat-tab-pill ${this.productsFilters.category === c.id ? "active" : ""}" onclick="app.filterByCategory('${c.id}')">
               ${c.name}
             </button>
           `).join("")}
@@ -462,17 +462,17 @@ class AppController {
       <!-- Result Count Bar -->
       <div style="padding: 10px 16px; display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-muted);">
         <span>Showing <strong>${products.length}</strong> items</span>
-        ${this.hasActiveFilters() ? `<a href="javascript:void(0)" onclick="app.clearCatalogFilters()" style="color:var(--danger); font-weight:700;">Reset Filters</a>` : ""}
+        ${this.hasActiveFilters() ? `<a href="javascript:void(0)" onclick="app.clearproductsFilters()" style="color:var(--danger); font-weight:700;">Reset Filters</a>` : ""}
       </div>
 
       <!-- Products Grid / List -->
-      <div class="${this.catalogViewMode === "grid" ? "products-grid-2col" : "cart-items-list"}">
+      <div class="${this.productsViewMode === "grid" ? "products-grid-3col" : "cart-items-list"}">
         ${products.length > 0 ? products.map(p => this.renderProductCardHtml(p, false)).join("") : `
           <div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px;">
             <div style="font-size: 40px; margin-bottom: 8px;">🛍️</div>
             <h3 style="font-size:16px; font-weight:700;">No Products Found</h3>
             <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">Try adjusting your filters or price range.</p>
-            <button class="tool-btn" style="margin: 16px auto 0 auto; background:var(--primary); color:#fff;" onclick="app.clearCatalogFilters()">Reset All Filters</button>
+            <button class="tool-btn" style="margin: 16px auto 0 auto; background:var(--primary); color:#fff;" onclick="app.clearproductsFilters()">Reset All Filters</button>
           </div>
         `}
       </div>
@@ -481,33 +481,33 @@ class AppController {
 
   hasActiveFilters() {
     return (
-      this.catalogFilters.category !== "all" ||
-      this.catalogFilters.brands.length > 0 ||
-      this.catalogFilters.minPrice > 0 ||
-      this.catalogFilters.maxPrice < 2000 ||
-      this.catalogFilters.minRating > 0 ||
-      this.catalogFilters.inStockOnly ||
-      this.catalogFilters.isDealOnly
+      this.productsFilters.category !== "all" ||
+      this.productsFilters.brands.length > 0 ||
+      this.productsFilters.minPrice > 0 ||
+      this.productsFilters.maxPrice < 2000 ||
+      this.productsFilters.minRating > 0 ||
+      this.productsFilters.inStockOnly ||
+      this.productsFilters.isDealOnly
     );
   }
 
   filterByCategory(catId) {
-    this.catalogFilters.category = catId;
-    this.navigate("catalog");
+    this.productsFilters.category = catId;
+    this.navigate("products");
   }
 
-  changeCatalogSort(sortValue) {
-    this.catalogSort = sortValue;
-    this.renderCatalog();
+  changeproductsSort(sortValue) {
+    this.productsSort = sortValue;
+    this.renderproducts();
   }
 
-  setCatalogViewMode(mode) {
-    this.catalogViewMode = mode;
-    this.renderCatalog();
+  setproductsViewMode(mode) {
+    this.productsViewMode = mode;
+    this.renderproducts();
   }
 
-  clearCatalogFilters() {
-    this.catalogFilters = {
+  clearproductsFilters() {
+    this.productsFilters = {
       category: "all",
       brands: [],
       minPrice: 0,
@@ -516,7 +516,7 @@ class AppController {
       inStockOnly: false,
       isDealOnly: false
     };
-    this.renderCatalog();
+    this.renderproducts();
     this.showToast("Filters Reset");
   }
 
@@ -535,9 +535,9 @@ class AppController {
           <div style="margin-bottom: 20px;">
             <label style="font-size:13px; font-weight:700; display:flex; justify-content:space-between;">
               <span>Max Price:</span>
-              <span id="priceDisplay" style="color:var(--primary); font-weight:800;">$${this.catalogFilters.maxPrice}</span>
+              <span id="priceDisplay" style="color:var(--primary); font-weight:800;">$${this.productsFilters.maxPrice}</span>
             </label>
-            <input type="range" min="50" max="2000" step="50" value="${this.catalogFilters.maxPrice}" style="width:100%; margin-top:8px;" oninput="document.getElementById('priceDisplay').textContent = '$' + this.value; app.catalogFilters.maxPrice = Number(this.value);" />
+            <input type="range" min="50" max="2000" step="50" value="${this.productsFilters.maxPrice}" style="width:100%; margin-top:8px;" oninput="document.getElementById('priceDisplay').textContent = '$' + this.value; app.productsFilters.maxPrice = Number(this.value);" />
           </div>
 
           <!-- Brand Checkboxes -->
@@ -546,7 +546,7 @@ class AppController {
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
               ${allBrands.map(b => `
                 <label style="display:flex; align-items:center; gap:6px; font-size:12px;">
-                  <input type="checkbox" value="${b}" ${this.catalogFilters.brands.includes(b) ? "checked" : ""} onchange="app.toggleBrandFilter('${b}', this.checked)" />
+                  <input type="checkbox" value="${b}" ${this.productsFilters.brands.includes(b) ? "checked" : ""} onchange="app.toggleBrandFilter('${b}', this.checked)" />
                   <span>${b}</span>
                 </label>
               `).join("")}
@@ -558,7 +558,7 @@ class AppController {
             <label style="font-size:13px; font-weight:700; margin-bottom:8px; display:block;">Minimum Customer Rating</label>
             <div style="display:flex; gap:8px;">
               ${[4, 3, 0].map(r => `
-                <button class="tool-btn ${this.catalogFilters.minRating === r ? "active" : ""}" onclick="app.catalogFilters.minRating = ${r}; app.renderCatalog(); app.closeModal();">
+                <button class="tool-btn ${this.productsFilters.minRating === r ? "active" : ""}" onclick="app.productsFilters.minRating = ${r}; app.renderproducts(); app.closeModal();">
                   ${r === 0 ? "All Ratings" : `${r}★ & above`}
                 </button>
               `).join("")}
@@ -570,20 +570,20 @@ class AppController {
             <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600;">
               <span>In-Stock Only</span>
               <label class="switch-toggle">
-                <input type="checkbox" ${this.catalogFilters.inStockOnly ? "checked" : ""} onchange="app.catalogFilters.inStockOnly = this.checked;" />
+                <input type="checkbox" ${this.productsFilters.inStockOnly ? "checked" : ""} onchange="app.productsFilters.inStockOnly = this.checked;" />
                 <span class="slider-toggle"></span>
               </label>
             </label>
             <label style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600;">
               <span>Flash Deals Only</span>
               <label class="switch-toggle">
-                <input type="checkbox" ${this.catalogFilters.isDealOnly ? "checked" : ""} onchange="app.catalogFilters.isDealOnly = this.checked;" />
+                <input type="checkbox" ${this.productsFilters.isDealOnly ? "checked" : ""} onchange="app.productsFilters.isDealOnly = this.checked;" />
                 <span class="slider-toggle"></span>
               </label>
             </label>
           </div>
 
-          <button class="checkout-cta-btn" onclick="app.renderCatalog(); app.closeModal();">
+          <button class="checkout-cta-btn" onclick="app.renderproducts(); app.closeModal();">
             Apply Filters
           </button>
         </div>
@@ -594,9 +594,9 @@ class AppController {
 
   toggleBrandFilter(brand, isChecked) {
     if (isChecked) {
-      if (!this.catalogFilters.brands.includes(brand)) this.catalogFilters.brands.push(brand);
+      if (!this.productsFilters.brands.includes(brand)) this.productsFilters.brands.push(brand);
     } else {
-      this.catalogFilters.brands = this.catalogFilters.brands.filter(b => b !== brand);
+      this.productsFilters.brands = this.productsFilters.brands.filter(b => b !== brand);
     }
   }
 
@@ -752,7 +752,7 @@ class AppController {
         <div style="padding: 12px 16px; font-size:13px; color:var(--text-muted);">
           Found <strong>${results.length}</strong> results for "<span style="color:var(--text-main); font-weight:700;">${term}</span>"
         </div>
-        <div class="products-grid-2col">
+        <div class="products-grid-3col">
           ${results.map(p => this.renderProductCardHtml(p, false)).join("")}
         </div>
       `;
@@ -1043,7 +1043,7 @@ class AppController {
 
       <div style="padding:16px;">
         ${items.length > 0 ? `
-          <div class="products-grid-2col">
+          <div class="products-grid-3col">
             ${items.map(item => `
               <div class="product-card">
                 <div class="product-thumb-wrap" onclick="app.openProduct('${item.id}')">
@@ -1068,7 +1068,7 @@ class AppController {
             <div style="font-size: 50px; margin-bottom: 12px;">❤️</div>
             <h3 style="font-size: 16px; font-weight: 800;">Your Wishlist is Empty</h3>
             <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Save items you love and buy them whenever you are ready.</p>
-            <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('catalog')">
+            <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('products')">
               Explore Products
             </button>
           </div>
@@ -1213,8 +1213,8 @@ class AppController {
         <div style="text-align:center; padding: 50px 20px;">
           <div style="font-size: 50px; margin-bottom: 12px;">🛒</div>
           <h3 style="font-size: 16px; font-weight: 800;">Your Cart is Empty</h3>
-          <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Explore our catalog and find great deals!</p>
-          <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('catalog')">
+          <p style="font-size: 12px; color:var(--text-muted); margin-top: 4px;">Explore our products and find great deals!</p>
+          <button class="checkout-cta-btn" style="margin-top: 20px;" onclick="app.navigate('products')">
             Start Shopping
           </button>
         </div>
@@ -1606,6 +1606,8 @@ class AppController {
     const container = document.getElementById("view-orders");
     if (!container) return;
 
+    if (!this.activeOrderTab) this.activeOrderTab = "all";
+
     let orders = [...appState.state.orders];
     if (this.activeOrderTab === "active") {
       orders = orders.filter(o => !["delivered", "cancelled"].includes(o.status));
@@ -1616,52 +1618,65 @@ class AppController {
     }
 
     container.innerHTML = `
-      <!-- Order Tabs -->
-      <div class="order-tabs-header">
-        <button class="order-tab-btn ${this.activeOrderTab === "all" ? "active" : ""}" onclick="app.activeOrderTab = 'all'; app.renderOrders();">All</button>
-        <button class="order-tab-btn ${this.activeOrderTab === "active" ? "active" : ""}" onclick="app.activeOrderTab = 'active'; app.renderOrders();">Active</button>
-        <button class="order-tab-btn ${this.activeOrderTab === "completed" ? "active" : ""}" onclick="app.activeOrderTab = 'completed'; app.renderOrders();">Completed</button>
-        <button class="order-tab-btn ${this.activeOrderTab === "cancelled" ? "active" : ""}" onclick="app.activeOrderTab = 'cancelled'; app.renderOrders();">Cancelled</button>
+      <!-- My Orders Header -->
+      <div style="padding:16px 16px 10px 16px; background:var(--bg-surface);">
+        <h2 style="font-size:18px; font-weight:800; color:var(--text-main); margin:0;">My Orders</h2>
       </div>
 
-      <div style="padding-bottom: 20px;">
-        ${orders.length > 0 ? orders.map(order => `
-          <div class="order-card-wrap" onclick="app.navigate('order_details', { orderId: '${order.id}' })">
-            <div class="order-header-row">
-              <div>
-                <span style="font-weight:800; font-size:13px;">#${order.orderNumber}</span>
-                <div style="font-size:11px; color:var(--text-muted);">${order.date} • ${order.items.length} items</div>
-              </div>
-              <span class="order-status-badge status-${order.status}">
-                ${order.status.replace(/_/g, " ")}
-              </span>
-            </div>
+      <!-- Order Tabs (Pills) -->
+      <div style="display:flex; gap:8px; padding:8px 16px 12px 16px; background:var(--bg-surface); border-bottom:1px solid var(--border-color); overflow-x:auto;">
+        <button class="tool-btn ${this.activeOrderTab === "all" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'all'; app.renderOrders();">All</button>
+        <button class="tool-btn ${this.activeOrderTab === "active" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'active'; app.renderOrders();">Active</button>
+        <button class="tool-btn ${this.activeOrderTab === "completed" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'completed'; app.renderOrders();">Completed</button>
+        <button class="tool-btn ${this.activeOrderTab === "cancelled" ? "active" : ""}" style="border-radius:var(--radius-full); padding:6px 18px; font-size:12px; font-weight:700;" onclick="app.activeOrderTab = 'cancelled'; app.renderOrders();">Cancelled</button>
+      </div>
 
-            <!-- Item Thumbs -->
-            <div style="display:flex; gap:8px; margin: 10px 0;">
-              ${order.items.map(it => `
-                <img src="${it.image}" style="width:48px; height:48px; border-radius:6px; object-fit:cover; border:1px solid var(--border-color);" alt="${it.name}" />
-              `).join("")}
-            </div>
+      <div style="padding:12px 0 24px 0;">
+        ${orders.length > 0 ? orders.map(order => {
+      const primaryItem = order.items[0] || {};
+      const productName = order.items.length > 1 ? `${primaryItem.name} + ${order.items.length - 1} more` : (primaryItem.name || "Product Item");
+      const totalQty = order.items.reduce((sum, it) => sum + (it.quantity || 1), 0);
+      const isDelivered = order.status === "delivered";
+      const isCancelled = order.status === "cancelled";
+      const statusText = isDelivered ? "Completed" : (isCancelled ? "Cancelled" : "In Delivery");
+      const statusClass = isDelivered ? "status-delivered" : (isCancelled ? "status-cancelled" : "status-out_for_delivery");
 
-            <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-color); padding-top:8px; margin-top:8px; font-size:12px;">
-              <div>Total: <strong style="font-size:14px; color:var(--text-main);">$${order.total.toFixed(2)}</strong></div>
-              <div style="display:flex; gap:6px;">
-                ${order.status !== "cancelled" ? `
-                  <button class="tool-btn active" onclick="event.stopPropagation(); app.navigate('tracking', { orderId: '${order.id}' })">
-                    Track 🚚
-                  </button>
-                ` : ""}
-                <button class="tool-btn" onclick="event.stopPropagation(); app.navigate('order_details', { orderId: '${order.id}' })">
-                  Details →
-                </button>
+      let actionBtnHtml = "";
+      if (isDelivered) {
+        actionBtnHtml = `<button style="color:var(--primary); font-size:12px; font-weight:700; background:none; border:none; cursor:pointer; text-decoration:none;" onclick="event.stopPropagation(); app.navigate('reviews', { productId: '${primaryItem.productId || primaryItem.id}' })">Leave a Review</button>`;
+      } else if (!isCancelled) {
+        actionBtnHtml = `<button style="color:var(--primary); font-size:12px; font-weight:700; background:none; border:none; cursor:pointer; text-decoration:none;" onclick="event.stopPropagation(); app.navigate('tracking', { orderId: '${order.id}' })">Track Order</button>`;
+      } else {
+        actionBtnHtml = `<button style="color:var(--text-muted); font-size:12px; font-weight:600; background:none; border:none; cursor:pointer; text-decoration:none;" onclick="event.stopPropagation(); app.navigate('order_details', { orderId: '${order.id}' })">Details</button>`;
+      }
+
+      return `
+            <div class="order-card-wrap" onclick="app.navigate('order_details', { orderId: '${order.id}' })" style="cursor:pointer; display:flex; gap:14px; align-items:center; padding:14px 16px; margin:10px 16px; background:var(--bg-surface); border:1px solid var(--border-color); border-radius:var(--radius-xl); box-shadow:var(--shadow-sm); transition:transform 0.15s ease;">
+              <img src="${primaryItem.image}" alt="${productName}" style="width:68px; height:68px; border-radius:12px; object-fit:cover; flex-shrink:0; background:var(--bg-surface-subtle);" />
+              <div style="flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;">
+                <div style="font-size:14px; font-weight:700; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${productName}
+                </div>
+                <div>
+                  <span class="order-status-badge ${statusClass}" style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:12px; display:inline-block;">
+                    ${statusText}
+                  </span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+                  <div style="font-size:14px; font-weight:800; color:var(--text-main);">$${order.total.toFixed(2)}</div>
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-size:11px; color:var(--text-muted); font-weight:600;">Qty <strong style="color:var(--text-main); font-weight:700;">${String(totalQty).padStart(2, '0')}</strong></span>
+                    ${actionBtnHtml}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        `).join("") : `
+          `;
+    }).join("") : `
           <div style="text-align:center; padding:50px 20px;">
             <div style="font-size:40px;">📦</div>
-            <h3 style="font-size:16px; font-weight:800; margin-top:8px;">No Orders in this filter</h3>
+            <h3 style="font-size:16px; font-weight:800; margin-top:8px;">No Orders Found</h3>
+            <p style="font-size:12px; color:var(--text-muted); margin-top:4px;">No orders match the selected filter or search.</p>
           </div>
         `}
       </div>
@@ -2056,7 +2071,7 @@ class AppController {
 
     const refundStep = ret.timeline.find(t => t.title.toLowerCase().includes("refund credited") || t.title.toLowerCase().includes("completed"));
     const isRefunded = refundStep && refundStep.done;
-    
+
     // Status text (customer friendly)
     const referenceText = `Return request #${ret.id}`;
 
@@ -2098,12 +2113,12 @@ class AppController {
     const refundStep = ret.timeline.find(t => t.title.toLowerCase().includes("refund credited") || t.title.toLowerCase().includes("completed"));
     const isRefunded = refundStep && refundStep.done;
     const isFailed = ret.status.toLowerCase() === "failed" || ret.status.toLowerCase() === "rejected";
-    
+
     let refundStatus = "Processing";
     if (isRefunded) refundStatus = "Credited";
     if (isFailed) refundStatus = "Failed";
 
-    const pickupDate = ret.timeline.find(t=>t.title.toLowerCase().includes("pickup scheduled"))?.date || 'N/A';
+    const pickupDate = ret.timeline.find(t => t.title.toLowerCase().includes("pickup scheduled"))?.date || 'N/A';
 
     const fullTimelineHtml = ret.timeline.map(t => {
       return `
@@ -2627,7 +2642,7 @@ class AppController {
     } else if (catId) {
       this.filterByCategory(catId);
     } else {
-      this.navigate("catalog");
+      this.navigate("products");
     }
   }
 
