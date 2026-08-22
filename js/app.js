@@ -28,6 +28,7 @@ class AppController {
     this.dealTimerInterval = null;
     this.bannerInterval = null;
     this.activeBannerSlide = 0;
+    this.savedAddressesExpanded = false;
   }
 
   init() {
@@ -870,20 +871,10 @@ class AppController {
           </div>
         </div>
 
-        <!-- Description with Heart Wishlist and Link Share Buttons -->
+        <!-- Description -->
         <div>
           <div class="pdp-desc-header">
             <h3 style="font-size:14px; font-weight:800;">Product Description</h3>
-            <div class="pdp-desc-actions">
-              <button id="pdpWishlistBtn" class="pdp-desc-btn ${isWishlisted ? "active" : ""}" onclick="app.toggleWishlist('${product.id}')" title="Wishlist">
-                <span>${isWishlisted ? "❤️" : "🤍"}</span>
-                <span>${isWishlisted ? "Saved" : "Wishlist"}</span>
-              </button>
-              <button class="pdp-desc-btn" onclick="app.shareProduct('${product.name}')" title="Share product link">
-                <span>🔗</span>
-                <span>Share</span>
-              </button>
-            </div>
           </div>
           <p style="font-size:13px; color:var(--text-muted); line-height:1.5;">${product.description}</p>
         </div>
@@ -1761,7 +1752,7 @@ class AppController {
     if (!order) return;
 
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <div class="sheet-header" style="padding:0 0 10px 0;">
           <h3 style="font-weight:800;">Customer Invoice #${order.orderNumber}</h3>
           <button onclick="app.closeModal()">✕</button>
@@ -1791,7 +1782,7 @@ class AppController {
 
   openCancelOrderModal(orderId) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; color:var(--danger);">Cancel Order #${orderId}</h3>
         <p style="font-size:12px; color:var(--text-muted); margin: 6px 0 12px 0;">Select a cancellation reason:</p>
         <select id="cancelReasonSelect" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;">
@@ -1812,6 +1803,11 @@ class AppController {
     this.closeModal();
     this.showToast(res.message);
     this.navigate("orders");
+  }
+
+  toggleSavedAddresses() {
+    this.savedAddressesExpanded = !this.savedAddressesExpanded;
+    this.renderAccount();
   }
 
   // --- Module 10: My Account & Profile ---
@@ -1838,43 +1834,38 @@ class AppController {
       <div class="account-menu-list">
         <!-- Address Book Group -->
         <div class="account-menu-group">
-          <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle); display:flex; justify-content:space-between; align-items:center;">
+          <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="app.toggleSavedAddresses()">
             <span>📍 SAVED ADDRESSES (${addresses.length})</span>
-            <button onclick="app.openAddAddressModal()" style="color:var(--primary); font-weight:700;">+ Add New</button>
-          </div>
-          ${addresses.map(addr => `
-            <div class="account-menu-item">
-              <div>
-                <strong>${addr.fullName}</strong> <span class="addr-tag">${addr.label}</span> ${addr.isDefault ? `<span style="font-size:10px; color:var(--success); font-weight:700;">(Default)</span>` : ""}
-                <div style="font-size:11px; color:var(--text-muted);">${addr.street}, ${addr.city}</div>
-              </div>
-              <div style="display:flex; gap:6px;">
-                ${!addr.isDefault ? `<button class="tool-btn" onclick="app.setDefaultAddr('${addr.id}')">Set Default</button>` : ""}
-                <button class="tool-btn" style="color:var(--danger);" onclick="app.deleteAddr('${addr.id}')">✕</button>
-              </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button onclick="event.stopPropagation(); app.openAddAddressModal()" style="color:var(--primary); font-weight:700; background:transparent; border:none; cursor:pointer;">+ Add New</button>
+              <span style="font-size:12px; transition: transform 0.2s; transform: ${this.savedAddressesExpanded ? 'rotate(180deg)' : 'rotate(0deg)'}">▼</span>
             </div>
-          `).join("")}
-        </div>
-
-        <!-- Security & Preferences Group -->
-        <div class="account-menu-group">
-          <div style="padding:12px 16px; font-size:12px; font-weight:800; color:var(--text-muted); background:var(--bg-surface-subtle);">
-            🔒 SECURITY & PREFERENCES
           </div>
-          <div class="account-menu-item">
-            <span>Two-Factor Authentication (2FA)</span>
-            <label class="switch-toggle">
-              <input type="checkbox" ${user.twoFactorEnabled ? "checked" : ""} onchange="app.toggle2FA()" />
-              <span class="slider-toggle"></span>
-            </label>
-          </div>
-          <div class="account-menu-item" onclick="app.openChangePasswordModal()">
-            <span>Change Password</span>
-            <span>→</span>
-          </div>
-          <div class="account-menu-item" onclick="app.openLoginHistoryModal()">
-            <span>Recent Login Activity</span>
-            <span>→</span>
+          <div style="display: ${this.savedAddressesExpanded ? 'block' : 'none'};">
+            ${addresses.length === 0 ? `
+              <div style="padding: 24px 16px; text-align: center; color: var(--text-muted);">
+                <p style="margin-bottom: 8px; font-weight:600;">No saved addresses</p>
+                <p style="font-size: 12px; margin-bottom: 16px;">Add your first address to make checkout and delivery faster.</p>
+                <button class="tool-btn" style="background:var(--primary); color:#fff;" onclick="app.openAddAddressModal()">+ Add New Address</button>
+              </div>
+            ` : `
+              ${addresses.map(addr => `
+                <div class="account-menu-item" style="flex-wrap: wrap; gap: 10px; align-items: flex-start; padding-top:16px; padding-bottom:16px;">
+                  <div style="flex: 1 1 200px;">
+                    <strong>${addr.fullName}</strong> <span class="addr-tag">${addr.label}</span> ${addr.isDefault ? `<span style="font-size:10px; color:var(--success); font-weight:700;">(Default)</span>` : ""}
+                    <div style="font-size:11px; color:var(--text-muted); line-height: 1.4; margin-top: 4px;">
+                      ${addr.street}<br/>
+                      ${addr.city}, ${addr.state || ''} ${addr.zip || ''}<br/>
+                      ${addr.country || ''}
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:6px; align-items: flex-start;">
+                    ${!addr.isDefault ? `<button class="tool-btn" onclick="app.setDefaultAddr('${addr.id}')">Set Default</button>` : ""}
+                    <button class="tool-btn" style="color:var(--danger);" onclick="if(confirm('Delete this address?')) app.deleteAddr('${addr.id}')">✕</button>
+                  </div>
+                </div>
+              `).join("")}
+            `}
           </div>
         </div>
 
@@ -1896,7 +1887,7 @@ class AppController {
   openEditProfileModal() {
     const u = appState.state.user;
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:14px;">Edit Profile</h3>
         <label style="font-size:12px; font-weight:700;">Full Name</label>
         <input type="text" id="editUserName" value="${u.name}" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
@@ -1922,33 +1913,55 @@ class AppController {
 
   openAddAddressModal() {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:14px;">Add New Address</h3>
-        <input type="text" id="newAddrName" placeholder="Full Name" value="Alex Morgan" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
-        <input type="text" id="newAddrStreet" placeholder="Street Address" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <input type="text" id="newAddrName" placeholder="Address Name / Label (e.g. John Doe)" value="Alex Morgan" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <input type="text" id="newAddrStreet" placeholder="Full Address" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
+        <input type="text" id="newAddrApt" placeholder="Apartment / Suite (Optional)" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:8px;" />
         <div style="display:flex; gap:8px; margin-bottom:8px;">
           <input type="text" id="newAddrCity" placeholder="City" style="flex:1; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
-          <input type="text" id="newAddrZip" placeholder="Zip" style="width:100px; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+          <input type="text" id="newAddrState" placeholder="State" style="width:80px; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
         </div>
-        <select id="newAddrTag" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:14px;">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input type="text" id="newAddrZip" placeholder="Zip" style="flex:1; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+          <input type="text" id="newAddrCountry" placeholder="Country" value="United States" style="flex:1; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color);" />
+        </div>
+        <select id="newAddrTag" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;">
           <option value="Home">Home</option>
           <option value="Work">Work</option>
           <option value="Other">Other</option>
         </select>
-        <button class="checkout-cta-btn" onclick="app.saveNewAddress()">Save Address</button>
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:14px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="newAddrIsDefault" /> Set as Default Address
+        </label>
+        <button id="saveAddrBtn" class="checkout-cta-btn" onclick="app.saveNewAddress()">Save Address</button>
       </div>
     `;
     this.openModal(modalContent);
   }
 
   saveNewAddress() {
-    const fullName = document.getElementById("newAddrName")?.value || "Alex Morgan";
-    const street = document.getElementById("newAddrStreet")?.value || "123 Maple Street";
-    const city = document.getElementById("newAddrCity")?.value || "Portland";
-    const zip = document.getElementById("newAddrZip")?.value || "97201";
+    const fullName = document.getElementById("newAddrName")?.value.trim() || "";
+    const street = document.getElementById("newAddrStreet")?.value.trim() || "";
+    const apt = document.getElementById("newAddrApt")?.value.trim() || "";
+    const city = document.getElementById("newAddrCity")?.value.trim() || "";
+    const state = document.getElementById("newAddrState")?.value.trim() || "";
+    const zip = document.getElementById("newAddrZip")?.value.trim() || "";
+    const country = document.getElementById("newAddrCountry")?.value.trim() || "";
     const label = document.getElementById("newAddrTag")?.value || "Home";
+    const isDefault = document.getElementById("newAddrIsDefault")?.checked || false;
 
-    appState.addAddress({ fullName, street, city, zip, label, state: "OR", phone: "+1 555-234-5678" });
+    if (!fullName || !street || !city || !state || !zip || !country) {
+      this.showToast("Please fill in all required fields.");
+      return;
+    }
+
+    const btn = document.getElementById("saveAddrBtn");
+    if (btn) btn.disabled = true;
+
+    const finalStreet = apt ? `${street}, ${apt}` : street;
+
+    appState.addAddress({ fullName, street: finalStreet, city, state, zip, country, label, phone: "+1 555-234-5678", isDefault });
     this.closeModal();
     this.showToast("Address Added ✓");
     if (this.currentView === "account") this.renderAccount();
@@ -1967,45 +1980,134 @@ class AppController {
     this.renderAccount();
   }
 
-  toggle2FA() {
-    const enabled = appState.toggle2FA();
-    this.showToast(enabled ? "2FA Enabled ✓" : "2FA Disabled");
-  }
-
-  openChangePasswordModal() {
-    const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
-        <h3 style="font-weight:800; margin-bottom:14px;">Change Password</h3>
-        <input type="password" placeholder="Current Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
-        <input type="password" placeholder="New Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:10px;" />
-        <input type="password" placeholder="Confirm New Password" style="width:100%; padding:10px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin-bottom:16px;" />
-        <button class="checkout-cta-btn" onclick="app.showToast('Password updated successfully! ✓'); app.closeModal();">Update Password</button>
-      </div>
-    `;
-    this.openModal(modalContent);
-  }
-
-  openLoginHistoryModal() {
-    const logs = appState.state.user.loginHistory;
-    const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
-        <h3 style="font-weight:800; margin-bottom:12px;">Recent Login Activity</h3>
-        ${logs.map(l => `
-          <div style="padding:10px; background:var(--bg-surface-subtle); border-radius:var(--radius-md); margin-bottom:8px; font-size:12px;">
-            <div style="display:flex; justify-content:space-between; font-weight:700;">
-              <span>${l.device}</span>
-              ${l.current ? `<span style="color:var(--success);">(Current Session)</span>` : ""}
-            </div>
-            <div style="color:var(--text-muted); margin-top:2px;">${l.location} • ${l.time} • IP: ${l.ip}</div>
-          </div>
-        `).join("")}
-        <button class="tool-btn" style="width:100%; margin-top:10px; justify-content:center;" onclick="app.closeModal()">Close</button>
-      </div>
-    `;
-    this.openModal(modalContent);
-  }
 
   // --- Module 11: Returns & Refunds ---
+  generateReturnCard(ret) {
+    let displayStatus = ret.status.charAt(0).toUpperCase() + ret.status.slice(1);
+    if (ret.status === "approved") displayStatus = "Approved";
+
+    const refundStep = ret.timeline.find(t => t.title.toLowerCase().includes("refund credited") || t.title.toLowerCase().includes("completed"));
+    const isRefunded = refundStep && refundStep.done;
+    
+    // Status text (customer friendly)
+    const referenceText = `Return request #${ret.id}`;
+
+    return `
+      <div class="return-card-box" onclick="app.openReturnDetailsModal('${ret.id}')" style="cursor:pointer; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <strong>Return #${ret.id}</strong>
+          <span class="order-status-badge ${isRefunded ? 'status-delivered' : 'status-shipped'}">${displayStatus}</span>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+          <img src="${ret.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover;" />
+          <div>
+            <div style="font-size:13px; font-weight:700;">${ret.productName}</div>
+            <div style="font-size:11px; color:var(--text-muted);">Refund: ₹${ret.refundAmount.toFixed(2)} to ${ret.refundMethod}</div>
+            <div style="font-size:10px; color:var(--primary); font-weight:700; margin-top:2px;">${referenceText}</div>
+          </div>
+        </div>
+
+        <!-- Return Stepper Timeline -->
+        <div style="background:var(--bg-surface-subtle); padding:10px; border-radius:var(--radius-md); font-size:11px;">
+          ${ret.timeline.map(t => `
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:${t.done ? "var(--text-main)" : "var(--text-subtle)"};">
+              <span>${t.done ? "✓" : "○"} ${t.title}</span>
+              <span style="font-size:10px;">${t.date}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  openReturnDetailsModal(retId) {
+    const ret = appState.state.returns.find(r => r.id === retId);
+    if (!ret) return;
+
+    let displayStatus = ret.status.charAt(0).toUpperCase() + ret.status.slice(1);
+    if (ret.status === "approved") displayStatus = "Approved";
+
+    const refundStep = ret.timeline.find(t => t.title.toLowerCase().includes("refund credited") || t.title.toLowerCase().includes("completed"));
+    const isRefunded = refundStep && refundStep.done;
+    const isFailed = ret.status.toLowerCase() === "failed" || ret.status.toLowerCase() === "rejected";
+    
+    let refundStatus = "Processing";
+    if (isRefunded) refundStatus = "Credited";
+    if (isFailed) refundStatus = "Failed";
+
+    const pickupDate = ret.timeline.find(t=>t.title.toLowerCase().includes("pickup scheduled"))?.date || 'N/A';
+
+    const fullTimelineHtml = ret.timeline.map(t => {
+      return `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; color:${t.done ? "var(--text-main)" : "var(--text-subtle)"};">
+          <div>
+            <div style="font-weight:700; font-size:12px;">${t.done ? "✓" : "○"} ${t.title}</div>
+            <div style="font-size:11px; margin-top:2px;">${t.desc}</div>
+          </div>
+          <div style="font-size:10px; margin-left:12px; text-align:right;">${t.date}</div>
+        </div>
+      `;
+    }).join("");
+
+    const modalContent = `
+      <div class="centered-modal" style="padding:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h3 style="font-weight:800; font-size:16px;">Return Details</h3>
+          <button onclick="app.closeModal()" style="background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-muted);">✕</button>
+        </div>
+        
+        <div style="background:var(--bg-surface-subtle); padding:12px; border-radius:var(--radius-md); margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Return ID</div>
+          <div style="font-weight:700; font-size:13px;">${ret.id}</div>
+        </div>
+        
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Product</div>
+          <div style="font-weight:700; font-size:13px;">${ret.productName}</div>
+        </div>
+        
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Return Reason</div>
+          <div style="font-weight:600; font-size:13px;">${ret.reason}</div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Return Status</div>
+          <div style="font-weight:700; font-size:13px; color:${isRefunded ? 'var(--success)' : 'var(--text-main)'};">${displayStatus}</div>
+        </div>
+        
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Pickup</div>
+          <div style="font-weight:600; font-size:13px;">${pickupDate}</div>
+        </div>
+        
+        <hr style="border:none; border-top:1px solid var(--border-color); margin:16px 0;" />
+
+        <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Refund</div>
+            <div style="font-weight:800; font-size:14px;">₹${ret.refundAmount.toFixed(2)}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Refund Status</div>
+            <div style="font-weight:700; font-size:13px; color:${isRefunded ? 'var(--success)' : (isFailed ? 'var(--danger)' : '#f59e0b')};">${refundStatus}</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:2px;">Refund Method</div>
+          <div style="font-weight:600; font-size:13px;">${ret.refundMethod}</div>
+        </div>
+
+        <div style="font-size:13px; font-weight:800; margin-bottom:12px;">Return Timeline</div>
+        <div style="padding:12px; border:1px solid var(--border-color); border-radius:var(--radius-md);">
+          ${fullTimelineHtml}
+        </div>
+      </div>
+    `;
+    this.openModal(modalContent);
+  }
+
   renderReturns() {
     const container = document.getElementById("view-returns");
     if (!container) return;
@@ -2020,47 +2122,8 @@ class AppController {
       </div>
 
       <div style="padding:16px;">
-        <!-- Eligible items banner -->
-        ${deliveredOrders.length > 0 ? `
-          <div style="background:var(--primary-light); border:1px solid var(--primary); border-radius:var(--radius-lg); padding:12px; margin-bottom:16px; font-size:12px;">
-            <strong>📦 Delivered items eligible for return (15-Day Window):</strong>
-            <div style="margin-top:6px;">
-              ${deliveredOrders.map(o => `
-                <button class="tool-btn active" style="margin-right:6px; margin-top:4px;" onclick="app.openReturnRequestModal('${o.id}', '${o.items[0].productId}')">
-                  Return item from #${o.orderNumber}
-                </button>
-              `).join("")}
-            </div>
-          </div>
-        ` : ""}
-
         <h3 style="font-size:14px; font-weight:800; margin-bottom:12px;">Active & Past Returns (${returns.length})</h3>
-        ${returns.map(ret => `
-          <div class="return-card-box">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <strong>Return #${ret.id}</strong>
-              <span class="order-status-badge status-delivered">${ret.status}</span>
-            </div>
-            <div style="display:flex; gap:10px; margin-bottom:10px;">
-              <img src="${ret.image}" style="width:50px; height:50px; border-radius:6px; object-fit:cover;" />
-              <div>
-                <div style="font-size:13px; font-weight:700;">${ret.productName}</div>
-                <div style="font-size:11px; color:var(--text-muted);">Refund: $${ret.refundAmount.toFixed(2)} to ${ret.refundMethod}</div>
-                <div style="font-size:10px; color:var(--primary); font-weight:700; margin-top:2px;">${ret.erpStatus}</div>
-              </div>
-            </div>
-
-            <!-- Return Stepper Timeline -->
-            <div style="background:var(--bg-surface-subtle); padding:10px; border-radius:var(--radius-md); font-size:11px;">
-              ${ret.timeline.map(t => `
-                <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:${t.done ? "var(--text-main)" : "var(--text-subtle)"};">
-                  <span>${t.done ? "✓" : "○"} ${t.title}</span>
-                  <span style="font-size:10px;">${t.date}</span>
-                </div>
-              `).join("")}
-            </div>
-          </div>
-        `).join("")}
+        ${returns.map(ret => this.generateReturnCard(ret)).join("")}
       </div>
     `;
   }
@@ -2070,7 +2133,7 @@ class AppController {
     const item = order?.items.find(i => i.productId === productId) || order?.items[0];
 
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:10px;">Request Return for ${item?.name}</h3>
         
         <label style="font-size:12px; font-weight:700;">Reason for Return</label>
@@ -2166,7 +2229,7 @@ class AppController {
 
   openWriteReviewModal(productId) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:12px;">Write a Customer Review</h3>
         <label style="font-size:12px; font-weight:700;">Your Rating</label>
         <div class="star-rating-picker" id="reviewStarPicker" style="margin: 6px 0 12px 0;">
@@ -2364,7 +2427,7 @@ class AppController {
 
   closeTicketAndRate(ticketId) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px; text-align:center;">
+      <div class="centered-modal" style="padding:20px; text-align:center;">
         <h3 style="font-weight:800; margin-bottom:8px;">Rate Support Experience</h3>
         <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">How satisfied were you with our customer resolution?</p>
         <div class="star-rating-picker" style="justify-content:center; margin-bottom:16px;">
@@ -2390,7 +2453,7 @@ class AppController {
 
   openRaiseTicketModal(prefilledCategory = null) {
     const modalContent = `
-      <div class="bottom-sheet" style="padding:20px;">
+      <div class="centered-modal" style="padding:20px;">
         <h3 style="font-weight:800; margin-bottom:12px;">Raise a Support Claim / Ticket</h3>
         <label style="font-size:12px; font-weight:700;">Issue Category</label>
         <select id="ticketCategorySelect" style="width:100%; padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--border-color); margin: 4px 0 10px 0;">

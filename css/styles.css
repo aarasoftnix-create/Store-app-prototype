@@ -2427,7 +2427,7 @@ input:checked + .slider-toggle:before {
    Modals, Bottom Sheets & Toasts
    ========================================================================== */
 .modal-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(4px);
@@ -2457,6 +2457,25 @@ input:checked + .slider-toggle:before {
 @keyframes slideUp {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
+}
+
+.centered-modal {
+  margin: auto;
+  width: calc(100% - 24px);
+  max-width: 500px;
+  max-height: calc(100% - 24px);
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: fadeInScale 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+@keyframes fadeInScale {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 
 .sheet-header {
